@@ -1,3 +1,5 @@
+
+
 # HyprBlue & HyprBazzite
 
 ## Purpose
@@ -308,7 +310,7 @@ just build-qcow2 $target_image $tag
 Rebuilds a QCOW2 virtual machine image.
 
 ```bash
-just rebuild-vm $target_image $tag
+just rebuild-qcow2 $target_image $tag
 ```
 
 ### `just run-vm-qcow2`
