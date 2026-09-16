@@ -18,6 +18,7 @@ USE_SDDM=FALSE
 
 log "Enable Copr repos..."
 COPR_REPOS=(
+	che/nerd-fonts # for nerd-fonts-monofur (present but disabled in bluefin-dx)
 	erikreider/SwayNotificationCenter # for swaync
 	errornointernet/packages
 	heus-sueh/packages                # for matugen/swww, needed by hyprpanel
@@ -59,6 +60,7 @@ FONTS=(
 	fira-code-fonts
 	fontawesome-fonts-all
 	google-noto-emoji-fonts
+	nerd-fonts-monofur
 )
 
 # Hyprland dependencies to be installed, based on
@@ -103,6 +105,7 @@ HYPR_DEPS=(
 	qalculate-gtk
 	qt5ct
 	qt6ct
+	quickshell
 	rofi-wayland
 	slurp
 	swappy
