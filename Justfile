@@ -300,10 +300,20 @@ _rootful_load_image $target_image=IMAGE_NAME $tag=DEFAULT_TAG:
         just sudoif podman pull "${target_image}:${tag}"
     fi
 
+[private]
+_test-vm-ssh-key:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [[ ! -f output/test-vm-ssh-key.pub ]]; then
+        mkdir -p output
+        ssh-keygen -t ed25519 -N "" -C "hyprblue local test VM (not committed)" -f output/test-vm-ssh-key >/dev/null
+        echo "==> Generated a local test VM SSH key: output/test-vm-ssh-key (gitignored)"
+    fi
+
 # Convert a container image into a bootable disk with Bootc Image Builder.
 # type is qcow2, raw or iso; config is the BIB config file to use
 # (iso/disk.toml for qcow2 and raw, iso/iso.toml for iso).
-_build-bib $target_image $tag $type $config: (_rootful_load_image target_image tag)
+_build-bib $target_image $tag $type $config: (_rootful_load_image target_image tag) _test-vm-ssh-key
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -326,16 +336,20 @@ _build-bib $target_image $tag $type $config: (_rootful_load_image target_image t
     fi
 
     BUILDTMP=$(mktemp -p "${PWD}" -d -t _build-bib.XXXXXXXXXX)
+    MATERIALIZED_CONFIG=$(mktemp)
     # This script exits on the first error, so a failed build would otherwise
     # leave the image BIB already wrote inside BUILDTMP behind in the repo root.
-    trap 'sudo rm -rf "${BUILDTMP}"' EXIT
+    trap 'sudo rm -rf "${BUILDTMP}"; rm -f "${MATERIALIZED_CONFIG}"' EXIT
+
+    sed "s#__TEST_VM_SSH_PUBLIC_KEY__#$(cat output/test-vm-ssh-key.pub)#" \
+      "${config}" >"${MATERIALIZED_CONFIG}"
 
     sudo podman run \
       --rm \
       --privileged \
       --net=host \
       --security-opt label=type:unconfined_t \
-      -v "${PWD}/${config}:/config.toml:ro" \
+      -v "${MATERIALIZED_CONFIG}:/config.toml:ro" \
       -v "${BUILDTMP}:/output" \
       -v /var/lib/containers/storage:/var/lib/containers/storage \
       "${bib_image}" \
@@ -577,7 +591,7 @@ run-vm-iso $target_image=("localhost/" + IMAGE_NAME) $tag=DEFAULT_TAG: && (_run-
 # human relaying a screenshot. Prints connection info and returns; the VM
 # keeps running in the background until `stop-vm-qcow-headless`.
 [group('Run Virtual Machine')]
-test-vm-qcow-headless $target_image=("localhost/" + IMAGE_NAME) $tag=DEFAULT_TAG:
+test-vm-qcow-headless $target_image=("localhost/" + IMAGE_NAME) $tag=DEFAULT_TAG: _test-vm-ssh-key
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -598,7 +612,7 @@ test-vm-qcow-headless $target_image=("localhost/" + IMAGE_NAME) $tag=DEFAULT_TAG
     # existing VM's connection info instead of erroring or launching another.
     if [[ -f "${pidfile}" ]] && kill -0 "$(cat "${pidfile}")" 2>/dev/null; then
         echo "==> Already running (pid $(cat "${pidfile}")):"
-        echo "    ssh:  ssh -i iso/test-vm-ssh-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p $(cat "${state_dir}/ssh_port") test@127.0.0.1"
+        echo "    ssh:  ssh -i output/test-vm-ssh-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p $(cat "${state_dir}/ssh_port") test@127.0.0.1"
         echo "    qmp:  ${state_dir}/qmp.sock (see: just screendump-vm-qcow-headless)"
         exit 0
     fi
@@ -659,7 +673,7 @@ test-vm-qcow-headless $target_image=("localhost/" + IMAGE_NAME) $tag=DEFAULT_TAG
         -daemonize \
         -pidfile "${pidfile}"
 
-    ssh_args=(-i iso/test-vm-ssh-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=2 -o BatchMode=yes -p "${ssh_port}")
+    ssh_args=(-i output/test-vm-ssh-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=2 -o BatchMode=yes -p "${ssh_port}")
 
     echo "==> Waiting for SSH (up to 180s)..."
     waited=0

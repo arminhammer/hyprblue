@@ -11,7 +11,6 @@
 
 REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
 DISK_TOML="${REPO_ROOT}/iso/disk.toml"
-TEST_VM_PUBKEY="${REPO_ROOT}/iso/test-vm-ssh-key.pub"
 
 @test "disk.toml: declares the test login account" {
 	run grep -A5 '^\[\[customizations.user\]\]' "${DISK_TOML}"
@@ -30,15 +29,17 @@ TEST_VM_PUBKEY="${REPO_ROOT}/iso/test-vm-ssh-key.pub"
 	[ "$status" -eq 0 ]
 }
 
-@test "disk.toml: the test account's key matches the committed test-vm-ssh-key.pub" {
-	# Password auth needs an interactive prompt (or sshpass); a headless
-	# automated test run needs key auth to actually be non-interactive.
-	[ -f "${TEST_VM_PUBKEY}" ]
-	pubkey_line="$(tr -d '\n' <"${TEST_VM_PUBKEY}")"
-
+@test "disk.toml: the test account's key is the placeholder, never a real committed key" {
+	# No SSH key material is ever committed — _build-bib (see
+	# tests/template/justfile-build-bib_test.bats) generates a local-only
+	# keypair under output/ (gitignored wholesale) and substitutes it in for
+	# this exact placeholder before handing the config to BIB.
 	key_line="$(grep -A5 '^\[\[customizations.user\]\]' "${DISK_TOML}" | grep '^key')"
 	[ -n "${key_line}" ]
-	[[ "${key_line}" == *"${pubkey_line}"* ]]
+	[[ "${key_line}" == *'"__TEST_VM_SSH_PUBLIC_KEY__"'* ]]
+
+	run grep -qE 'key = "ssh-' <<<"${key_line}"
+	[ "$status" -ne 0 ]
 }
 
 @test "disk.toml: the test account is in the wheel group" {

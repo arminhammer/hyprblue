@@ -28,10 +28,11 @@ setup() {
 	mkdir -p "${STUB_BIN}" "${TEST_ROOT}/logs" "${SANDBOX}"
 	cp "${REPO_ROOT}/Justfile" "${SANDBOX}/Justfile"
 	mkdir -p "${SANDBOX}/iso"
-	printf '[[customizations.filesystem]]\nmountpoint = "/"\n' >"${SANDBOX}/iso/disk.toml"
+	printf '[[customizations.filesystem]]\nmountpoint = "/"\n\n[[customizations.user]]\nname = "test"\nkey = "__TEST_VM_SSH_PUBLIC_KEY__"\n' >"${SANDBOX}/iso/disk.toml"
 
+	CONFIG_MOUNT_LOG="${TEST_ROOT}/logs/config-mount.log"
 	export PATH="${STUB_BIN}:${PATH}"
-	export PODMAN_LOG
+	export PODMAN_LOG CONFIG_MOUNT_LOG
 	# _rootful_load_image no-ops entirely when it believes it is already
 	# running under sudo — sidesteps the hardcoded /usr/bin/sudo call inside
 	# the separate `sudoif` dispatcher (a different code path than the bare
@@ -64,6 +65,10 @@ if [[ "\$1" == "run" ]]; then
 			host_dir="\${args[\$((i+1))]%%:/output}"
 			mkdir -p "\${host_dir}/qcow2"
 			printf '%s' "\${STUB_BIB_CONTENT}" >"\${host_dir}/qcow2/disk.qcow2"
+		fi
+		if [[ "\${args[\$i]}" == -v && "\${args[\$((i+1))]}" == *:/config.toml:ro ]]; then
+			config_host="\${args[\$((i+1))]%%:/config.toml:ro}"
+			cp "\${config_host}" "${CONFIG_MOUNT_LOG}"
 		fi
 	done
 fi
@@ -104,4 +109,44 @@ run_build_qcow2() {
 	run_build_qcow2
 	[ "$status" -eq 0 ]
 	[ "$(cat "${SANDBOX}/output/qcow2/disk.qcow2")" = "build-b" ]
+}
+
+@test "build-qcow2: generates a local test VM SSH key, never committed" {
+	# output/ is gitignored wholesale — the key must land there, never under
+	# iso/ (the committed-blueprint seam) or anywhere else that could end up
+	# in a commit.
+	run_build_qcow2
+	[ "$status" -eq 0 ]
+
+	[ -f "${SANDBOX}/output/test-vm-ssh-key" ]
+	[ -f "${SANDBOX}/output/test-vm-ssh-key.pub" ]
+	run grep -q "PRIVATE KEY" "${SANDBOX}/output/test-vm-ssh-key"
+	[ "$status" -eq 0 ]
+}
+
+@test "build-qcow2: substitutes the generated public key into disk.toml's placeholder before handing it to BIB" {
+	run_build_qcow2
+	[ "$status" -eq 0 ]
+
+	pubkey="$(cat "${SANDBOX}/output/test-vm-ssh-key.pub")"
+	[ -f "${CONFIG_MOUNT_LOG}" ]
+	run grep -qF "__TEST_VM_SSH_PUBLIC_KEY__" "${CONFIG_MOUNT_LOG}"
+	[ "$status" -ne 0 ]
+	run grep -qF "${pubkey}" "${CONFIG_MOUNT_LOG}"
+	[ "$status" -eq 0 ]
+
+	# The committed disk.toml itself is untouched — only the materialized copy
+	# handed to BIB carries the real key.
+	run grep -qF "__TEST_VM_SSH_PUBLIC_KEY__" "${SANDBOX}/iso/disk.toml"
+	[ "$status" -eq 0 ]
+}
+
+@test "build-qcow2: reuses the same local key across runs instead of regenerating it" {
+	run_build_qcow2
+	[ "$status" -eq 0 ]
+	first_key="$(cat "${SANDBOX}/output/test-vm-ssh-key.pub")"
+
+	run_build_qcow2
+	[ "$status" -eq 0 ]
+	[ "$(cat "${SANDBOX}/output/test-vm-ssh-key.pub")" = "${first_key}" ]
 }

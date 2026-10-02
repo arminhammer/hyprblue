@@ -2,5 +2,3 @@ cosign.key
 _build_*
 output
 _build-*/**
-iso/test-vm-ssh-key
-iso/test-vm-ssh-key.pub

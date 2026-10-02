@@ -15,5 +15,5 @@ minsize = "20 GiB"
 [[customizations.user]]
 name = "test"
 password = "$6$hyprbluetest$3nIcRE3OS5ZHvNaLN5u0/jZIbglaJw834UnuMmXzE5FutF3nUovGZuh2B07i9AE2SkKE4xvQ2Voj1rH3M1OdG."
-key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGNNaPe0x1L+A5PPb2wMZY9hDbdn+Lsf0tl7NjcZnfB5 hyprblue-test-vm (test-only, no real access)"
+key = "__TEST_VM_SSH_PUBLIC_KEY__"
 groups = ["wheel"]

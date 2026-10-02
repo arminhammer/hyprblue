@@ -15,6 +15,7 @@ These hold for every change:
   files. The `validate` status check runs shellcheck and hadolint on a pull
   request.
 - **Confirm before pushing** — show the diff and wait.
+- Do not write large comments when generating code.
 
 ## Branches and releases
 
