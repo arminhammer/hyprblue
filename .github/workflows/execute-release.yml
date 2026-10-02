@@ -101,7 +101,7 @@ jobs:
       contents: write
       id-token: write
       packages: read
-    # Finpilot's direct build does not upload an SBOM artifact. The supported
+    # Hyprblue's direct build does not upload an SBOM artifact. The supported
     # reusable inline mode scans the already-promoted stable image instead.
     uses: projectbluefin/actions/.github/workflows/reusable-release.yml@837850b6100b22c7920476035e7e1c28fdbba67f # v1
     with:

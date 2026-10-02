@@ -1,4 +1,4 @@
-# finpilot
+# hyprblue
 
 A template for building your own bootc operating system image, assembled the
 same way Bluefin, Aurora, and Bluefin LTS are: from shared OCI layers rather
@@ -49,7 +49,7 @@ _Last updated: [date]_
    - `Justfile` — the `IMAGE_NAME` default
    - `artifacthub-repo.yml` — `repositoryID`
 
-   Grep for `finpilot` afterwards to catch the prose and the examples.
+   Grep for `hyprblue` afterwards to catch the prose and the examples.
 3. **Finish setup.** [The `onboarding` skill](.agents/skills/onboarding/SKILL.md)
    carries the rest — enabling Actions, auto-merge and workflow permissions, the
    Renovate token, the `stable` branch, branch protection on both branches, and

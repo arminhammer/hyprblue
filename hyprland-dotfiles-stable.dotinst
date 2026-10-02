@@ -1,0 +1,109 @@
+{
+	"name": "ML4W OS - Dotfiles for Hyprland (STABLE)",
+	"id": "com.ml4w.dotfiles.stable",
+	"description": "Advanced configuration for the dynamic tiling window manager Hyprland.",
+	"version":"2.15.1",
+	"author": "Stephan Raabe",
+	"homepage": "https://ml4w.com/os/",
+	"dependencies": "https://ml4w.com/os/getting-started/dependencies",
+	"source": "https://github.com/mylinuxforwork/dotfiles.git",
+	"subfolder": "dotfiles",
+	"tag":"2.15.1",
+	"restore":[
+		{
+			"title":"ML4W OS Settings",
+			"source":".config/ml4w/settings",
+			"value":true
+		},
+		{
+			"title":"Input",
+			"source":".config/hypr/input.lua",
+			"value":true
+		},
+		{
+			"title":"Gestures",
+			"source":".config/hypr/gesture.lua",
+			"value":true
+		},
+		{
+			"title":"Monitor Setup (NWG Displays)",
+			"source":".config/hypr/monitors.lua",
+			"value":true
+		},
+		{
+			"title":"Hyprland GUI (HyprMod)",
+			"source":".config/hypr/hyprland-gui.lua",
+			"value":true
+		},
+		{
+			"title":"Monitor Variant",
+			"source":".config/hypr/conf/monitor.lua",
+			"value":true
+		},
+		{
+			"title":"Hyprsunset",
+			"source":".config/hypr/hyprsunset.conf",
+			"value":true
+		},
+		{
+			"title":"Hypridle",
+			"source":".config/hypr/hypridle.conf",
+			"value":true
+		},
+		{
+			"title":"Keybindings",
+			"source":".config/hypr/conf/keybinding.lua",
+			"value":true
+		},
+		{
+			"title":"Environment",
+			"source":".config/hypr/conf/environment.lua",
+			"value":true
+		},
+		{
+			"title":"Layout",
+			"source":".config/hypr/conf/layout.lua",
+			"value":true
+		},
+		{
+			"title":"Windowrules",
+			"source":".config/hypr/conf/windowrule.lua",
+			"value":true
+		},
+		{
+			"title":"Animation",
+			"source":".config/hypr/conf/animation.lua",
+			"value":true
+		},
+		{
+			"title":"Decoration",
+			"source":".config/hypr/conf/decoration.lua",
+			"value":true
+		},
+		{
+			"title":"Window",
+			"source":".config/hypr/conf/window.lua",
+			"value":true
+		},
+		{
+			"title":"Workspaces",
+			"source":".config/hypr/workspaces.lua",
+			"value":true
+		},
+		{
+			"title":"GTK 3",
+			"source":".config/gtk-3.0",
+			"value":true
+		},
+		{
+			"title":"GTK 4",
+			"source":".config/gtk-4.0",
+			"value":true
+		},
+		{
+			"title":"GTK 2",
+			"source":".gtkrc-2.0",
+			"value":true
+		}
+	]
+}

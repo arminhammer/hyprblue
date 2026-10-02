@@ -1,7 +1,7 @@
 ###############################################################################
 # PROJECT NAME CONFIGURATION
 ###############################################################################
-# Name: finpilot
+# Name: hyprblue
 #
 # The authoritative name at publish time is the repository name: build-image.yml
 # derives IMAGE_NAME from ${{ github.event.repository.name }} and pushes the
@@ -26,7 +26,7 @@
 #
 # 2. Base Image Options (edit the FROM line below):
 #    - `quay.io/fedora-ostree-desktops/silverblue` (Fedora, GNOME desktop)
-#    - `quay.io/fedora-ostree-desktops/base-main` (Fedora, no desktop)
+#    - `quay.io/fedora-ostree-desktops/base-atomic` (Fedora, no desktop)
 #    - `quay.io/centos-bootc/centos-bootc:stream10` (CentOS-based)
 #    - `quay.io/hummingbird-community/bootc-os` (Hummingbird-based, minimal)
 #
@@ -48,13 +48,15 @@ COPY custom /custom
 COPY --from=common /system_files /oci/common
 COPY --from=brew /system_files /oci/brew
 
-# Base Image - GNOME included (Fedora official OSTree desktop)
+# Base Image - no desktop (Fedora official OSTree base). Hyprland, its
+# session/portal/polkit-agent packages, and SDDM are installed by
+# build/70-hyprland.sh instead of inheriting GNOME's.
 # Renovate will keep the digest pin up to date.
-FROM quay.io/fedora-ostree-desktops/silverblue:44@sha256:82ea364ab3c5abb01bbeb8c4a342372124bf3200b2baf4d1b4e143895edb3b1b
+FROM quay.io/fedora-ostree-desktops/base-atomic:44@sha256:7a2bb53c68c7a40283a947dbf0d0e02bff06c81f0f5340b97bb21fd516d742b3
 
 # Image identity - these define how bootc, fastfetch, and the ublue ecosystem
 # recognize your image. Change these to match your project name.
-ARG IMAGE_NAME="finpilot"
+ARG IMAGE_NAME="hyprblue"
 ARG IMAGE_VENDOR="projectbluefin"
 ARG UBLUE_IMAGE_TAG="stable"
 # Supplied by `just build` from the base image's FROM line.
@@ -69,8 +71,9 @@ ARG VERSION=""
 ##   - Files from @projectbluefin/common at /oci/common (includes branding/artwork content)
 ##   - Files from @ublue-os/brew at /oci/brew
 ## Scripts run in the order of the RUN blocks below: image identity, runtime
-## overlays, default packages and services, then cleanup. An activated example
-## gets its own block between the package phase and the cleanup phase.
+## overlays, default packages and services, the Hyprland desktop, then
+## cleanup. An activated example gets its own block between the package phase
+## and the cleanup phase.
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/boot \
@@ -104,6 +107,17 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/boot \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build/20-packages-and-services.sh
+
+### HYPRLAND DESKTOP
+## Installs Hyprland, its session/portal/polkit-agent packages, the desktop
+## app set, and SDDM. Kept separate from the package phase above so it stays
+## one self-contained, independently reviewable/removable phase.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache/libdnf5 \
+    --mount=type=cache,dst=/var/cache/rpm-ostree \
+    --mount=type=tmpfs,dst=/boot \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/build/70-hyprland.sh
 
 ### CLEANUP
 ## Finalises package and Flatpak sources, then prunes build artifacts before

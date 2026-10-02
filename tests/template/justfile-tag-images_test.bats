@@ -55,14 +55,14 @@ podman_calls() {
 }
 
 @test "tag-images: rejects a missing default tag" {
-	run_tag_images finpilot "" "t1 t2"
+	run_tag_images hyprblue "" "t1 t2"
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"Usage: just tag-images"* ]]
 	[ ! -s "${PODMAN_LOG}" ]
 }
 
 @test "tag-images: rejects an empty tag list" {
-	run_tag_images finpilot stable ""
+	run_tag_images hyprblue stable ""
 	[ "$status" -eq 1 ]
 	[[ "$output" == *"Usage: just tag-images"* ]]
 	[ ! -s "${PODMAN_LOG}" ]
@@ -76,13 +76,13 @@ podman_calls() {
 }
 
 @test "tag-images: resolves the image id from the localhost-qualified default tag" {
-	run_tag_images finpilot stable "stable-42 latest"
+	run_tag_images hyprblue stable "stable-42 latest"
 	[ "$status" -eq 0 ]
-	podman_calls | grep -Fxq 'inspect localhost/finpilot:stable'
+	podman_calls | grep -Fxq 'inspect localhost/hyprblue:stable'
 }
 
 @test "tag-images: untags the localhost default reference before re-tagging" {
-	run_tag_images finpilot stable "stable-42"
+	run_tag_images hyprblue stable "stable-42"
 	[ "$status" -eq 0 ]
 
 	local untag_line tag_line
@@ -91,53 +91,53 @@ podman_calls() {
 	[ -n "${untag_line}" ]
 	[ -n "${tag_line}" ]
 	[ "${untag_line}" -lt "${tag_line}" ]
-	podman_calls | grep -Fxq 'untag localhost/finpilot:stable'
+	podman_calls | grep -Fxq 'untag localhost/hyprblue:stable'
 }
 
 @test "tag-images: applies every tag in the whitespace-separated list" {
-	run_tag_images finpilot stable "stable-42 stable-42.20250101 latest"
+	run_tag_images hyprblue stable "stable-42 stable-42.20250101 latest"
 	[ "$status" -eq 0 ]
-	podman_calls | grep -Fxq 'tag sha256:deadbeef finpilot:stable-42'
-	podman_calls | grep -Fxq 'tag sha256:deadbeef finpilot:stable-42.20250101'
-	podman_calls | grep -Fxq 'tag sha256:deadbeef finpilot:latest'
+	podman_calls | grep -Fxq 'tag sha256:deadbeef hyprblue:stable-42'
+	podman_calls | grep -Fxq 'tag sha256:deadbeef hyprblue:stable-42.20250101'
+	podman_calls | grep -Fxq 'tag sha256:deadbeef hyprblue:latest'
 }
 
 @test "tag-images: re-applies the default tag so local lookups keep working" {
-	run_tag_images finpilot stable "latest"
+	run_tag_images hyprblue stable "latest"
 	[ "$status" -eq 0 ]
-	podman_calls | grep -Fxq 'tag sha256:deadbeef finpilot:stable'
+	podman_calls | grep -Fxq 'tag sha256:deadbeef hyprblue:stable'
 
 	# The default tag is restored last, after every alias tag.
 	local last_tag
 	last_tag="$(grep '^tag ' "${PODMAN_LOG}" | tail -n1)"
-	[ "${last_tag}" = 'tag sha256:deadbeef finpilot:stable' ]
+	[ "${last_tag}" = 'tag sha256:deadbeef hyprblue:stable' ]
 }
 
 @test "tag-images: alias tags are unqualified (no localhost/ prefix)" {
-	run_tag_images finpilot stable "latest"
+	run_tag_images hyprblue stable "latest"
 	[ "$status" -eq 0 ]
 	run grep -c '^tag sha256:deadbeef localhost/' "${PODMAN_LOG}"
 	[ "$status" -ne 0 ]
 }
 
 @test "tag-images: a single tag produces exactly two tag calls (alias + default)" {
-	run_tag_images finpilot stable "latest"
+	run_tag_images hyprblue stable "latest"
 	[ "$status" -eq 0 ]
 	[ "$(grep -c '^tag ' "${PODMAN_LOG}")" -eq 2 ]
 }
 
 @test "tag-images: collapses repeated whitespace in the tag list" {
-	run_tag_images finpilot stable "  latest   stable-42  "
+	run_tag_images hyprblue stable "  latest   stable-42  "
 	[ "$status" -eq 0 ]
 	[ "$(grep -c '^tag ' "${PODMAN_LOG}")" -eq 3 ]
-	podman_calls | grep -Fxq 'tag sha256:deadbeef finpilot:latest'
-	podman_calls | grep -Fxq 'tag sha256:deadbeef finpilot:stable-42'
+	podman_calls | grep -Fxq 'tag sha256:deadbeef hyprblue:latest'
+	podman_calls | grep -Fxq 'tag sha256:deadbeef hyprblue:stable-42'
 }
 
 @test "tag-images: reports the tags it applied" {
-	run_tag_images finpilot stable "latest stable-42"
+	run_tag_images hyprblue stable "latest stable-42"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"Tagged finpilot with: latest stable-42"* ]]
+	[[ "$output" == *"Tagged hyprblue with: latest stable-42"* ]]
 }
 
 @test "tag-images: honours a PODMAN override from the environment" {
@@ -151,10 +151,10 @@ exit 0
 STUB
 	chmod +x "${STUB_BIN}/docker-shim"
 
-	PODMAN=docker-shim run_tag_images finpilot stable "latest"
+	PODMAN=docker-shim run_tag_images hyprblue stable "latest"
 	[ "$status" -eq 0 ]
-	podman_calls | grep -Fxq 'shim inspect localhost/finpilot:stable'
-	podman_calls | grep -Fxq 'shim tag sha256:cafe finpilot:latest'
+	podman_calls | grep -Fxq 'shim inspect localhost/hyprblue:stable'
+	podman_calls | grep -Fxq 'shim tag sha256:cafe hyprblue:latest'
 	run grep -c '^inspect ' "${PODMAN_LOG}"
 	[ "$status" -ne 0 ]
 }
@@ -171,7 +171,7 @@ exit 0
 STUB
 	chmod +x "${STUB_BIN}/podman"
 
-	run_tag_images finpilot stable "latest"
+	run_tag_images hyprblue stable "latest"
 	[ "$status" -ne 0 ]
 	# No tagging is attempted once the id lookup fails.
 	run grep -c '^tag ' "${PODMAN_LOG}"
@@ -196,7 +196,7 @@ exit 0
 STUB
 	chmod +x "${STUB_BIN}/podman"
 
-	run_tag_images finpilot stable "latest"
+	run_tag_images hyprblue stable "latest"
 	[ "$status" -ne 0 ]
 	run grep -c '^tag ' "${PODMAN_LOG}"
 	[ "$status" -ne 0 ]
@@ -218,7 +218,7 @@ exit 0
 STUB
 	chmod +x "${STUB_BIN}/podman"
 
-	run_tag_images finpilot stable "latest stable-42"
+	run_tag_images hyprblue stable "latest stable-42"
 	[ "$status" -ne 0 ]
 	# Aborts on the first failing tag rather than continuing the loop.
 	[ "$(grep -c '^tag ' "${PODMAN_LOG}")" -eq 1 ]

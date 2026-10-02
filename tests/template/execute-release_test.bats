@@ -40,8 +40,8 @@ setup() {
 @test "execute-release: accepts the rendered promotion PR title" {
 	# Insurance: this becomes the subject if the branch ever carries more than
 	# one commit, or if the repository setting changes to PR_TITLE.
-	[[ "ci(promote): finpilot main → stable 2026-09-17" =~ ${PATTERN} ]]
-	[[ "ci(promote): finpilot main → stable 2026-09-17 (#22)" =~ ${PATTERN} ]]
+	[[ "ci(promote): hyprblue main → stable 2026-09-17" =~ ${PATTERN} ]]
+	[[ "ci(promote): hyprblue main → stable 2026-09-17 (#22)" =~ ${PATTERN} ]]
 }
 
 @test "execute-release: rejects the subjects a promotion never produces" {

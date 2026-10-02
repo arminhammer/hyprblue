@@ -93,7 +93,7 @@ EOF
 ###############################################################################
 # Unlike the previous append-only implementation, replace existing base-image
 # values. Fedora Silverblue already has VARIANT_ID, so appending only when it
-# was absent left installed Finpilot images reporting themselves as Fedora.
+# was absent left installed Hyprblue images reporting themselves as Fedora.
 if [[ -f "${OS_RELEASE}" ]]; then
     set_os_release_value "VARIANT_ID" "${IMAGE_NAME}"
     set_os_release_value "PRETTY_NAME" "${IMAGE_NAME} (Version: ${VERSION})"

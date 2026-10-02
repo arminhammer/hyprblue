@@ -1,4 +1,4 @@
-export IMAGE_NAME := env("IMAGE_NAME", "finpilot")
+export IMAGE_NAME := env("IMAGE_NAME", "hyprblue")
 export DEFAULT_TAG := env("DEFAULT_TAG", "stable")
 export PODMAN := env("PODMAN", "podman")
 export REPO_ORG := env("GITHUB_REPOSITORY_OWNER", "projectbluefin")
@@ -135,7 +135,7 @@ sudoif command *args:
 # registry already has that version, and a clean worktree also stamps the short
 # HEAD SHA.
 #
-# Example: just build finpilot stable-testing
+# Example: just build hyprblue stable-testing
 
 # Build the image using the specified parameters
 [group('Image')]
@@ -343,6 +343,9 @@ _build-bib $target_image $tag $type $config: (_rootful_load_image target_image t
       "${build_image}"
 
     mkdir -p output
+    for entry in "${BUILDTMP}"/*; do
+        sudo rm -rf "output/$(basename "${entry}")"
+    done
     sudo mv -f "${BUILDTMP}"/* output/
     sudo rmdir "${BUILDTMP}"
     # `id` rather than `$USER`: these recipes run under `set -u` from cron,
@@ -468,7 +471,7 @@ _run-vm $target_image $tag $type:
         -m "${vm_ram}"
         -device virtio-vga
         -device virtio-keyboard
-        -device virtio-mouse
+        -device virtio-tablet
         -device virtio-net-pci,netdev=net0
         -netdev "user,id=net0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22"
         -drive "if=pflash,format=raw,readonly=on,file=${ovmf_code}"
@@ -566,6 +569,162 @@ run-vm-raw $target_image=("localhost/" + IMAGE_NAME) $tag=DEFAULT_TAG: && (_run-
 # Run a virtual machine from an ISO
 [group('Run Virtual Machine')]
 run-vm-iso $target_image=("localhost/" + IMAGE_NAME) $tag=DEFAULT_TAG: && (_run-vm target_image tag "iso")
+
+# Boot the qcow2 artifact headless (no GTK window) for automated verification
+# instead of an interactive session: a QMP socket for screenshots and the
+# test/test account (see iso/disk.toml) reachable over SSH with a dedicated
+# key, so an agent or script can inspect the VM directly rather than through a
+# human relaying a screenshot. Prints connection info and returns; the VM
+# keeps running in the background until `stop-vm-qcow-headless`.
+[group('Run Virtual Machine')]
+test-vm-qcow-headless $target_image=("localhost/" + IMAGE_NAME) $tag=DEFAULT_TAG:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    artifact=$(just vm-artifact "qcow2")
+    if [[ ! -f "${artifact}" ]]; then
+        just build-qcow2 "${target_image}" "${tag}"
+    fi
+
+    if ! command -v qemu-system-x86_64 >/dev/null 2>&1; then
+        echo "ERROR: qemu-system-x86_64 not found — headless testing needs native QEMU" >&2
+        exit 1
+    fi
+
+    state_dir="output/headless-vm"
+    pidfile="${state_dir}/qemu.pid"
+
+    # Idempotent: a second call while one is already running just reports the
+    # existing VM's connection info instead of erroring or launching another.
+    if [[ -f "${pidfile}" ]] && kill -0 "$(cat "${pidfile}")" 2>/dev/null; then
+        echo "==> Already running (pid $(cat "${pidfile}")):"
+        echo "    ssh:  ssh -i iso/test-vm-ssh-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p $(cat "${state_dir}/ssh_port") test@127.0.0.1"
+        echo "    qmp:  ${state_dir}/qmp.sock (see: just screendump-vm-qcow-headless)"
+        exit 0
+    fi
+    mkdir -p "${state_dir}"
+
+    ovmf_code=""
+    for f in \
+        /usr/share/edk2/ovmf/OVMF_CODE.fd \
+        /usr/share/OVMF/OVMF_CODE.fd \
+        /usr/share/OVMF/OVMF_CODE_4M.fd \
+        /usr/share/edk2/x64/OVMF_CODE.4m.fd \
+        /usr/share/qemu/OVMF_CODE.fd; do
+        [[ -f "${f}" ]] && { ovmf_code="${f}"; break; }
+    done
+    if [[ -z "${ovmf_code}" ]]; then
+        echo "ERROR: OVMF firmware not found — install edk2-ovmf (Fedora) or ovmf (Debian/Ubuntu)" >&2
+        exit 1
+    fi
+
+    ovmf_vars_src=""
+    for f in \
+        /usr/share/edk2/ovmf/OVMF_VARS.fd \
+        /usr/share/OVMF/OVMF_VARS.fd \
+        /usr/share/OVMF/OVMF_VARS_4M.fd \
+        /usr/share/edk2/x64/OVMF_VARS.4m.fd \
+        /usr/share/qemu/OVMF_VARS.fd; do
+        [[ -f "${f}" ]] && { ovmf_vars_src="${f}"; break; }
+    done
+    # Not cleaned up on exit: UEFI keeps writing to this for as long as the
+    # daemonized VM runs, well past this script's own lifetime.
+    # stop-vm-qcow-headless removes the whole state_dir once the VM is dead.
+    ovmf_vars="${state_dir}/OVMF_VARS.fd"
+    [[ -n "${ovmf_vars_src}" ]] && cp "${ovmf_vars_src}" "${ovmf_vars}"
+
+    ssh_port=2222
+    while ss -tunalp 2>/dev/null | grep -q ":${ssh_port} "; do
+        ssh_port=$(( ssh_port + 1 ))
+    done
+    echo "${ssh_port}" >"${state_dir}/ssh_port"
+
+    qemu-system-x86_64 \
+        -machine q35 \
+        -accel kvm \
+        -cpu host \
+        -smp "${vm_cpus}" \
+        -m "${vm_ram}" \
+        -device virtio-vga \
+        -device virtio-keyboard \
+        -device virtio-tablet \
+        -device virtio-net-pci,netdev=net0 \
+        -netdev "user,id=net0,hostfwd=tcp:127.0.0.1:${ssh_port}-:22" \
+        -drive "if=pflash,format=raw,readonly=on,file=${ovmf_code}" \
+        -drive "if=pflash,format=raw,file=${ovmf_vars}" \
+        -drive "file=${artifact},if=virtio,format=qcow2" \
+        -boot order=c \
+        -display none \
+        -qmp "unix:${state_dir}/qmp.sock,server,nowait" \
+        -daemonize \
+        -pidfile "${pidfile}"
+
+    ssh_args=(-i iso/test-vm-ssh-key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=2 -o BatchMode=yes -p "${ssh_port}")
+
+    echo "==> Waiting for SSH (up to 180s)..."
+    waited=0
+    until ssh "${ssh_args[@]}" test@127.0.0.1 true 2>/dev/null; do
+        sleep 3
+        waited=$(( waited + 3 ))
+        if (( waited >= 180 )); then
+            echo "ERROR: SSH never came up after 180s — check: just screendump-vm-qcow-headless, or journalctl via the serial console" >&2
+            exit 1
+        fi
+    done
+
+    echo "==> Ready. pid $(cat "${pidfile}"), ssh port ${ssh_port}"
+    echo "    ssh:  ssh ${ssh_args[*]} test@127.0.0.1"
+    echo "    qmp:  ${state_dir}/qmp.sock (see: just screendump-vm-qcow-headless)"
+
+# Grab a screenshot of a running `test-vm-qcow-headless` VM's framebuffer via
+# QMP, saved as a PNG (QMP's own screendump only writes PPM). Useful whenever
+# SSH alone cannot confirm something — e.g. whether SDDM or Hyprland actually
+# rendered anything.
+[group('Run Virtual Machine')]
+screendump-vm-qcow-headless $out="output/headless-vm/screen.png":
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    sock="output/headless-vm/qmp.sock"
+    if [[ ! -S "${sock}" ]]; then
+        echo "ERROR: ${sock} not found — is test-vm-qcow-headless running?" >&2
+        exit 1
+    fi
+
+    ppm="$(mktemp --suffix=.ppm)"
+    trap 'rm -f "${ppm}"' EXIT
+
+    # QMP handshake: negotiate capabilities, then issue screendump. Each
+    # command is answered on the same connection, so both are sent over one
+    # socat invocation.
+    printf '{"execute":"qmp_capabilities"}\n{"execute":"screendump","arguments":{"filename":"%s"}}\n' "${ppm}" \
+        | socat - "UNIX-CONNECT:${sock}" >/dev/null
+
+    mkdir -p "$(dirname "${out}")"
+    magick "${ppm}" "${out}"
+    echo "==> Saved: ${out}"
+
+# Stop a `test-vm-qcow-headless` VM and clean up its state directory.
+[group('Run Virtual Machine')]
+stop-vm-qcow-headless:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    state_dir="output/headless-vm"
+    pidfile="${state_dir}/qemu.pid"
+    if [[ -f "${pidfile}" ]]; then
+        pid="$(cat "${pidfile}")"
+        if kill -0 "${pid}" 2>/dev/null; then
+            kill "${pid}"
+            for _ in $(seq 1 20); do
+                kill -0 "${pid}" 2>/dev/null || break
+                sleep 0.5
+            done
+            kill -0 "${pid}" 2>/dev/null && kill -9 "${pid}"
+        fi
+    fi
+    rm -rf "${state_dir}"
+    echo "==> Stopped and cleaned up ${state_dir}"
 
 # Run a virtual machine using systemd-vmspawn. Disk images only; for an ISO use run-vm-iso.
 [group('Run Virtual Machine')]

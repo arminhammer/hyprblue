@@ -5,3 +5,15 @@
 [[customizations.filesystem]]
 mountpoint = "/"
 minsize = "20 GiB"
+
+# A login account. Unlike iso/iso.toml, these disk types never run Anaconda,
+# so nothing else creates one — without this, `run-vm-qcow2`/`run-vm-raw` boot
+# straight to an SDDM greeter with no account to select. Test-only credentials:
+# password is "test", hashed rather than stored in plaintext since this file
+# is committed to git. The key is test-vm-ssh-key(.pub) alongside this file —
+# also test-only, and lets `test-vm-qcow-headless` log in non-interactively.
+[[customizations.user]]
+name = "test"
+password = "$6$hyprbluetest$3nIcRE3OS5ZHvNaLN5u0/jZIbglaJw834UnuMmXzE5FutF3nUovGZuh2B07i9AE2SkKE4xvQ2Voj1rH3M1OdG."
+key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGNNaPe0x1L+A5PPb2wMZY9hDbdn+Lsf0tl7NjcZnfB5 hyprblue-test-vm (test-only, no real access)"
+groups = ["wheel"]

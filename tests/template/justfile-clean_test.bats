@@ -48,15 +48,15 @@ run_recipe_without_sudo() {
 }
 
 @test "clean: removes top-level entries whose name contains _build" {
-	mkdir -p "${SANDBOX}/finpilot_build/layer"
-	touch "${SANDBOX}/finpilot_build/layer/blob" \
+	mkdir -p "${SANDBOX}/hyprblue_build/layer"
+	touch "${SANDBOX}/hyprblue_build/layer/blob" \
 		"${SANDBOX}/my_build.log" \
 		"${SANDBOX}/_build"
 
 	run_recipe clean
 	[ "$status" -eq 0 ]
 
-	[ ! -e "${SANDBOX}/finpilot_build" ]
+	[ ! -e "${SANDBOX}/hyprblue_build" ]
 	[ ! -e "${SANDBOX}/my_build.log" ]
 	[ ! -e "${SANDBOX}/_build" ]
 }
@@ -101,11 +101,11 @@ run_recipe_without_sudo() {
 }
 
 @test "clean: succeeds on an already-clean tree and is repeatable" {
-	mkdir -p "${SANDBOX}/finpilot_build"
+	mkdir -p "${SANDBOX}/hyprblue_build"
 
 	run_recipe clean
 	[ "$status" -eq 0 ]
-	[ ! -e "${SANDBOX}/finpilot_build" ]
+	[ ! -e "${SANDBOX}/hyprblue_build" ]
 
 	run_recipe clean
 	[ "$status" -eq 0 ]
@@ -140,15 +140,15 @@ run_recipe_without_sudo() {
 		skip "root takes the direct-exec branch; this asserts the unprivileged path"
 	fi
 
-	mkdir -p "${SANDBOX}/finpilot_build" "${SANDBOX}/output"
-	touch "${SANDBOX}/finpilot_build/blob" "${SANDBOX}/output/manifest"
+	mkdir -p "${SANDBOX}/hyprblue_build" "${SANDBOX}/output"
+	touch "${SANDBOX}/hyprblue_build/blob" "${SANDBOX}/output/manifest"
 
 	run_recipe_without_sudo sudo-clean
 	[ "$status" -ne 0 ]
 
 	# The whole point of sudo-clean is that the removals happen as root; if
 	# escalation is impossible nothing may be deleted as the calling user.
-	[ -d "${SANDBOX}/finpilot_build" ]
+	[ -d "${SANDBOX}/hyprblue_build" ]
 	[ -d "${SANDBOX}/output" ]
 }
 

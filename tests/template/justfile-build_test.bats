@@ -102,40 +102,40 @@ podman_build_args() {
 }
 
 @test "build: derives a bare <fedora>.<date> version for the stable tag" {
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" == *"--build-arg VERSION=44.20260830"* ]]
 }
 
 @test "build: prefixes the version with the tag for non-stable tags" {
-    run_just build finpilot testing
+    run_just build hyprblue testing
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" == *"--build-arg VERSION=testing-44.20260830"* ]]
 }
 
 @test "build: treats any tag containing 'stable' as a stable build" {
-    run_just build finpilot pre-stable
+    run_just build hyprblue pre-stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" == *"--build-arg VERSION=44.20260830"* ]]
 }
 
 @test "build: reads the base tag from the base FROM line" {
     printf 'FROM example.invalid/silverblue:43@sha256:deadbeef\n' >"${SANDBOX}/Containerfile"
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" == *"--build-arg VERSION=43.20260830"* ]]
 }
 
 @test "build: reads the base FROM tag, not a context stage's tag" {
     printf 'FROM example.invalid/ctx:99@sha256:deadbeef AS ctx\nFROM example.invalid/silverblue:45@sha256:deadbeef\n' >"${SANDBOX}/Containerfile"
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" == *"--build-arg VERSION=45.20260830"* ]]
 }
 
 @test "build: accepts a base FROM line without a digest" {
     printf 'FROM example.invalid/silverblue:42\n' >"${SANDBOX}/Containerfile"
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" == *"--build-arg VERSION=42.20260830"* ]]
 }
@@ -144,7 +144,7 @@ podman_build_args() {
     # CentOS and Hummingbird bases tag with something other than a Fedora
     # major, so the tag is used as-is in the version string.
     printf 'FROM example.invalid/centos-bootc:stream10@sha256:deadbeef\n' >"${SANDBOX}/Containerfile"
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" == *"--build-arg VERSION=stream10.20260830"* ]]
     [[ "$(podman_build_args)" == *"--build-arg BASE_IMAGE_NAME=centos-bootc"* ]]
@@ -152,7 +152,7 @@ podman_build_args() {
 
 @test "build: aborts when the base FROM line carries no tag" {
     printf 'FROM example.invalid/silverblue@sha256:deadbeef\n' >"${SANDBOX}/Containerfile"
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -ne 0 ]
     [[ "$output" == *"Could not read the base image"* ]]
     [ ! -s "${PODMAN_LOG}" ] || ! grep -q '^build ' "${PODMAN_LOG}"
@@ -160,7 +160,7 @@ podman_build_args() {
 
 @test "build: appends a point release when the version tag already exists" {
     export STUB_SKOPEO_TAGS='{"Tags":["44.20260830"]}'
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$output" == *"Tag collision detected; using version 44.20260830.1"* ]]
     [[ "$(podman_build_args)" == *"--build-arg VERSION=44.20260830.1"* ]]
@@ -168,38 +168,38 @@ podman_build_args() {
 
 @test "build: walks past existing point releases to the first free one" {
     export STUB_SKOPEO_TAGS='{"Tags":["44.20260830","44.20260830.1","44.20260830.2"]}'
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" == *"--build-arg VERSION=44.20260830.3"* ]]
 }
 
 @test "build: leaves the version untouched when the registry lookup fails" {
     export STUB_SKOPEO_STATUS=1
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" == *"--build-arg VERSION=44.20260830"* ]]
     [[ "$output" != *"Tag collision detected"* ]]
 }
 
 @test "build: stamps SHA_HEAD_SHORT only when the worktree is clean" {
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" == *"--build-arg SHA_HEAD_SHORT=abc1234"* ]]
 }
 
 @test "build: omits SHA_HEAD_SHORT when the worktree is dirty" {
     export STUB_GIT_STATUS=" M Containerfile"
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" != *"SHA_HEAD_SHORT"* ]]
 }
 
 @test "build: passes the image identity build args bootc relies on" {
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     local args
     args="$(podman_build_args)"
-    [[ "${args}" == *"--build-arg IMAGE_NAME=finpilot"* ]]
+    [[ "${args}" == *"--build-arg IMAGE_NAME=hyprblue"* ]]
     [[ "${args}" == *"--build-arg IMAGE_VENDOR=projectbluefin"* ]]
     [[ "${args}" == *"--build-arg UBLUE_IMAGE_TAG=stable"* ]]
     [[ "${args}" == *"--build-arg BASE_IMAGE_NAME=silverblue"* ]]
@@ -207,7 +207,7 @@ podman_build_args() {
 
 @test "build: passes the base image name read from the FROM line" {
     printf 'FROM example.invalid/other-base:44@sha256:deadbeef\n' >"${SANDBOX}/Containerfile"
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" == *"--build-arg BASE_IMAGE_NAME=other-base"* ]]
 }
@@ -215,17 +215,17 @@ podman_build_args() {
 @test "build: falls back to the GitHub repository owner for the vendor" {
     # A fork needs no edits: Actions sets GITHUB_REPOSITORY_OWNER, so the image
     # and its layer cache follow the fork's owner.
-    GITHUB_REPOSITORY_OWNER="acme-org" run_just build finpilot stable
+    GITHUB_REPOSITORY_OWNER="acme-org" run_just build hyprblue stable
     [ "$status" -eq 0 ]
 
     local args
     args="$(podman_build_args)"
     [[ "${args}" == *"--build-arg IMAGE_VENDOR=acme-org"* ]]
-    [[ "${args}" == *"--cache-from ghcr.io/acme-org/finpilot"* ]]
+    [[ "${args}" == *"--cache-from ghcr.io/acme-org/hyprblue"* ]]
 }
 
 @test "build: honours IMAGE_VENDOR and UBLUE_IMAGE_TAG overrides" {
-    IMAGE_VENDOR="acme" UBLUE_IMAGE_TAG="pinned" run_just build finpilot stable
+    IMAGE_VENDOR="acme" UBLUE_IMAGE_TAG="pinned" run_just build hyprblue stable
     [ "$status" -eq 0 ]
     local args
     args="$(podman_build_args)"
@@ -250,16 +250,16 @@ podman_build_args() {
     # The VM recipes pass localhost/<name> as target_image. The local tag keeps
     # the prefix; the identity must not, or image-info's image-ref names a
     # registry path that cannot exist and the ISO installs against it.
-    run_just build localhost/finpilot stable
+    run_just build localhost/hyprblue stable
     [ "$status" -eq 0 ]
     local args
     args="$(podman_build_args)"
-    [[ "${args}" == *"--build-arg IMAGE_NAME=finpilot"* ]]
-    [[ "${args}" == *"--tag localhost/finpilot:stable"* ]]
+    [[ "${args}" == *"--build-arg IMAGE_NAME=hyprblue"* ]]
+    [[ "${args}" == *"--tag localhost/hyprblue:stable"* ]]
 }
 
 @test "build: forwards GITHUB_TOKEN as a build secret when set" {
-    GITHUB_TOKEN="s3cret" run_just build finpilot stable
+    GITHUB_TOKEN="s3cret" run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$output" == *"Adding GitHub token as build secret"* ]]
     [[ "$(podman_build_args)" == *"--secret id=GITHUB_TOKEN,env=GITHUB_TOKEN"* ]]
@@ -269,13 +269,13 @@ podman_build_args() {
     # Do not inherit an exported token from the developer's shell or a workflow
     # that passes one in; the assertion is specifically about the unset case.
     unset GITHUB_TOKEN
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     [[ "$(podman_build_args)" != *"--secret"* ]]
 }
 
 @test "build: supplies only dynamic OCI metadata to the Containerfile" {
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     local args
     args="$(podman_build_args)"
@@ -288,7 +288,7 @@ podman_build_args() {
 }
 
 @test "build: forwards explicit Containerfile metadata overrides" {
-    IMAGE_DESC="Custom image" IMAGE_LOGO_URL="https://example.com/logo.svg" IMAGE_KEYWORDS="bootc,custom" IMAGE_REF="feature" run_just build finpilot stable
+    IMAGE_DESC="Custom image" IMAGE_LOGO_URL="https://example.com/logo.svg" IMAGE_KEYWORDS="bootc,custom" IMAGE_REF="feature" run_just build hyprblue stable
     [ "$status" -eq 0 ]
     local args
     args="$(podman_build_args)"
@@ -316,23 +316,23 @@ podman_build_args() {
 }
 
 @test "build: reads the layer cache but never writes it by default" {
-    run_just build finpilot stable
+    run_just build hyprblue stable
     [ "$status" -eq 0 ]
     local args
     args="$(podman_build_args)"
-    [[ "${args}" == *"--cache-from ghcr.io/projectbluefin/finpilot"* ]]
+    [[ "${args}" == *"--cache-from ghcr.io/projectbluefin/hyprblue"* ]]
     [[ "${args}" != *"--cache-to"* ]]
 }
 
 @test "build: writes the layer cache when REGISTRY_CACHE_WRITE=1" {
-    REGISTRY_CACHE_WRITE=1 run_just build finpilot stable
+    REGISTRY_CACHE_WRITE=1 run_just build hyprblue stable
     [ "$status" -eq 0 ]
-    [[ "$(podman_build_args)" == *"--cache-to ghcr.io/projectbluefin/finpilot"* ]]
+    [[ "$(podman_build_args)" == *"--cache-to ghcr.io/projectbluefin/hyprblue"* ]]
 }
 
 @test "build: skips cache args entirely when the cache ref is unreachable" {
     export STUB_SKOPEO_STATUS=1
-    REGISTRY_CACHE_WRITE=1 run_just build finpilot stable
+    REGISTRY_CACHE_WRITE=1 run_just build hyprblue stable
     [ "$status" -eq 0 ]
     local args
     args="$(podman_build_args)"
@@ -341,12 +341,12 @@ podman_build_args() {
 }
 
 @test "build: pulls a newer base and tags the result target_image:tag" {
-    run_just build finpilot testing
+    run_just build hyprblue testing
     [ "$status" -eq 0 ]
     local args
     args="$(podman_build_args)"
     [[ "${args}" == *"--pull=newer"* ]]
-    [[ "${args}" == *"--tag finpilot:testing"* ]]
+    [[ "${args}" == *"--tag hyprblue:testing"* ]]
 }
 
 @test "tag-images: rejects an empty image name" {
@@ -356,38 +356,38 @@ podman_build_args() {
 }
 
 @test "tag-images: rejects an empty default tag" {
-    run_just tag-images finpilot "" "one two"
+    run_just tag-images hyprblue "" "one two"
     [ "$status" -eq 1 ]
     [[ "$output" == *"Usage: just tag-images"* ]]
 }
 
 @test "tag-images: rejects an empty tag list" {
-    run_just tag-images finpilot stable ""
+    run_just tag-images hyprblue stable ""
     [ "$status" -eq 1 ]
     [[ "$output" == *"Usage: just tag-images"* ]]
 }
 
 @test "tag-images: untags the default tag before re-tagging by image id" {
-    run_just tag-images finpilot stable "latest 44"
+    run_just tag-images hyprblue stable "latest 44"
     [ "$status" -eq 0 ]
 
     mapfile -t calls <"${PODMAN_LOG}"
-    [ "${calls[0]}" = "inspect localhost/finpilot:stable" ]
-    [ "${calls[1]}" = "untag localhost/finpilot:stable" ]
-    [ "${calls[2]}" = "tag sha256:deadbeef finpilot:latest" ]
-    [ "${calls[3]}" = "tag sha256:deadbeef finpilot:44" ]
+    [ "${calls[0]}" = "inspect localhost/hyprblue:stable" ]
+    [ "${calls[1]}" = "untag localhost/hyprblue:stable" ]
+    [ "${calls[2]}" = "tag sha256:deadbeef hyprblue:latest" ]
+    [ "${calls[3]}" = "tag sha256:deadbeef hyprblue:44" ]
 }
 
 @test "tag-images: re-applies the default tag so local lookups still resolve" {
-    run_just tag-images finpilot stable "latest"
+    run_just tag-images hyprblue stable "latest"
     [ "$status" -eq 0 ]
-    [[ "$(tail -n1 "${PODMAN_LOG}")" = "tag sha256:deadbeef finpilot:stable" ]]
-    [[ "$output" == *"Tagged finpilot with: latest"* ]]
+    [[ "$(tail -n1 "${PODMAN_LOG}")" = "tag sha256:deadbeef hyprblue:stable" ]]
+    [[ "$output" == *"Tagged hyprblue with: latest"* ]]
 }
 
 @test "tag-images: aborts when the image cannot be inspected" {
     export STUB_PODMAN_STATUS=1
-    run_just tag-images finpilot stable "latest"
+    run_just tag-images hyprblue stable "latest"
     [ "$status" -ne 0 ]
     ! grep -q '^untag ' "${PODMAN_LOG}"
 }
