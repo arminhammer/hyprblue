@@ -134,6 +134,8 @@ echo "::group:: Install SDDM"
 # (weston) is the plain alternative. sddm-breeze is omitted for the same reason:
 # it requires plasma-workspace. Without kde-settings-sddm nothing sets
 # Theme/Current, so SDDM uses its embedded theme.
+# The greeter's compositor is Hyprland, set in custom/files/etc/sddm.conf.d: weston
+# enables every output but the screens stay black on NVIDIA.
 dnf5 install -y sddm sddm-wayland-generic qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia
 
 echo "::endgroup::"
