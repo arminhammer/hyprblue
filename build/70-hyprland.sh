@@ -87,7 +87,7 @@ dnf5 install -y \
 	nautilus gnome-text-editor firefox xdg-user-dirs xdg-desktop-portal-gtk \
 	figlet fastfetch htop xclip zsh fzf brightnessctl tumbler slurp grim \
 	breeze-icon-theme tesseract wl-clipboard btop cargo eza libsecret waybar \
-	fish matugen pinta gnome-keyring
+	fish matugen pinta gnome-keyring iwd
 
 echo "::endgroup::"
 
@@ -143,6 +143,9 @@ echo "::group:: Enable Hyprland session services"
 # Without this, the image boots to no login screen and no way to start a
 # Hyprland session: base-atomic has no display manager at all.
 systemctl enable sddm.service
+
+# NetworkManager's Wi-Fi backend is iwd, set by custom/files/etc/NetworkManager/conf.d/iwd.conf.
+systemctl enable iwd.service
 
 echo "::endgroup::"
 

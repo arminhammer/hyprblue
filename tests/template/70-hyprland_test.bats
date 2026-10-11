@@ -250,7 +250,7 @@ teardown() {
 	[ "$status" -eq 0 ]
 
 	mapfile -t calls <"${DNF5_LOG}"
-	[ "${calls[12]}" = "install -y libnotify qt5-qtwayland qt6-qtwayland python3-pip python3-gobject python3-devel python3-setuptools gtk3 gtk-layer-shell python3-i3ipc pipx nm-connection-editor network-manager-applet fuse ImageMagick NetworkManager-tui tesseract-langpack-eng fontawesome-fonts-all qt5-qtgraphicaleffects qt6-qt5compat qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia gvfs-mtp openssl-devel pkgconf-pkg-config gcc gobject-introspection-devel cairo-gobject-devel gtk4 libadwaita-devel lua wget2-wget curl git rsync unzip tar jq flatpak vim-enhanced inotify-tools udisks2 gvfs udiskie rofi pavucontrol neovim blueman nautilus gnome-text-editor firefox xdg-user-dirs xdg-desktop-portal-gtk figlet fastfetch htop xclip zsh fzf brightnessctl tumbler slurp grim breeze-icon-theme tesseract wl-clipboard btop cargo eza libsecret waybar fish matugen pinta gnome-keyring" ]
+	[ "${calls[12]}" = "install -y libnotify qt5-qtwayland qt6-qtwayland python3-pip python3-gobject python3-devel python3-setuptools gtk3 gtk-layer-shell python3-i3ipc pipx nm-connection-editor network-manager-applet fuse ImageMagick NetworkManager-tui tesseract-langpack-eng fontawesome-fonts-all qt5-qtgraphicaleffects qt6-qt5compat qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia gvfs-mtp openssl-devel pkgconf-pkg-config gcc gobject-introspection-devel cairo-gobject-devel gtk4 libadwaita-devel lua wget2-wget curl git rsync unzip tar jq flatpak vim-enhanced inotify-tools udisks2 gvfs udiskie rofi pavucontrol neovim blueman nautilus gnome-text-editor firefox xdg-user-dirs xdg-desktop-portal-gtk figlet fastfetch htop xclip zsh fzf brightnessctl tumbler slurp grim breeze-icon-theme tesseract wl-clipboard btop cargo eza libsecret waybar fish matugen pinta gnome-keyring iwd" ]
 }
 
 @test "70-hyprland: installs SDDM with the generic greeter, not the Plasma one" {
@@ -281,8 +281,17 @@ teardown() {
 	[ "$status" -eq 0 ]
 
 	mapfile -t calls <"${SYSTEMCTL_LOG}"
-	[ "${#calls[@]}" -eq 1 ]
+	[ "${#calls[@]}" -eq 2 ]
 	[ "${calls[0]}" = "enable sddm.service" ]
+}
+
+@test "70-hyprland: enables iwd.service, the NetworkManager Wi-Fi backend" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	mapfile -t calls <"${SYSTEMCTL_LOG}"
+	[ "${calls[1]}" = "enable iwd.service" ]
+	grep -qx 'wifi.backend=iwd' "${BATS_TEST_DIRNAME}/../../custom/files/etc/NetworkManager/conf.d/iwd.conf"
 }
 
 @test "70-hyprland: fetches the pinned ML4W dotfiles tag" {
