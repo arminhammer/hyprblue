@@ -79,6 +79,7 @@ EOF
 	cat >"${FIXTURE_SRC}/dotfiles-2.15.1/dotfiles/.config/hypr/conf/autostart.lua" <<'EOF'
 hl.on("hyprland.start", function ()
     hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
+    hl.exec_cmd("~/.config/ml4w/scripts/ml4w-autostart > ~/.mydotfiles/ml4w-autostart.log 2>&1")
 end)
 EOF
 	mkdir -p "${FIXTURE_SRC}/dotfiles-2.15.1/dotfiles/.config/kitty"
@@ -344,6 +345,18 @@ teardown() {
 	run grep -q "polkit-gnome" "${autostart}"
 	[ "$status" -ne 0 ]
 	grep -q 'hl.exec_cmd("/usr/libexec/hyprpolkitagent")' "${autostart}"
+}
+
+@test "70-hyprland: logs ml4w-autostart somewhere that exists so Quickshell starts" {
+	# The upstream redirect targets ~/.mydotfiles, which nothing creates; the
+	# shell then fails before ml4w-autostart runs.
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	autostart="${SANDBOX}/etc/skel/.config/hypr/conf/autostart.lua"
+	run grep -q "mydotfiles" "${autostart}"
+	[ "$status" -ne 0 ]
+	grep -qF '> ${XDG_RUNTIME_DIR}/ml4w-autostart.log 2>&1' "${autostart}"
 }
 
 @test "70-hyprland: links hyprpolkitagent onto PATH so hyprland-welcome can detect it" {

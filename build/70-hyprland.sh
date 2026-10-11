@@ -178,6 +178,14 @@ sed -i \
 	's#/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1#/usr/libexec/hyprpolkitagent#' \
 	"${DOTFILES_SRC}/.config/hypr/conf/autostart.lua"
 
+# ML4W's autostart redirects ml4w-autostart's output into ~/.mydotfiles, which
+# nothing creates. The shell fails on the redirect, so ml4w-autostart never runs
+# and Quickshell (the default bar, launcher, and dock) never starts.
+# shellcheck disable=SC2016
+sed -i \
+	's#~/.mydotfiles/ml4w-autostart.log#${XDG_RUNTIME_DIR}/ml4w-autostart.log#' \
+	"${DOTFILES_SRC}/.config/hypr/conf/autostart.lua"
+
 # hyprland-welcome decides whether a component is installed by looking for its
 # binary on PATH, and reports "Missing" when it is only in /usr/libexec. The
 # symlinks make the polkit agent and the portal findable by name too.
