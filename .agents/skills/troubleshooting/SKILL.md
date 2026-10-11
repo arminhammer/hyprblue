@@ -52,6 +52,7 @@ the README's Troubleshooting section.
 | no Wi-Fi on first boot | no connection profile and no applet; hardware and firmware are in the image | `nmtui`, or `nm-applet` from the seeded autostart |
 | polkit agent never starts | `hyprpolkitagent` is in `/usr/libexec`, not on `PATH` | autostart must use `/usr/libexec/hyprpolkitagent` |
 | the Plasma session, kwin, or polkit-kde is in the image | `sddm` resolves its greeter requirement to `sddm-wayland-plasma`, and `sddm-breeze` requires `plasma-workspace` | install `sddm-wayland-generic` and no KDE theme package |
+| nouveau loads on the NVIDIA variant, or `nvidia-smi` fails | rebased onto `hyprblue` instead of `hyprblue-nvidia`, or the akmods image for the base kernel is not published yet (the build fails at `50-nvidia.sh`) | `sudo bootc switch ghcr.io/<owner>/hyprblue-nvidia:stable-testing`; on a build failure wait for akmods to catch up with the base kernel |
 | `ujust` shows no custom commands | `60-custom.just` was not written or imported | check that `10-overlay.sh` copied the recipes |
 
 ## Capturing what you learned

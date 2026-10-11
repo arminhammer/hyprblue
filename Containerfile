@@ -62,6 +62,8 @@ ARG UBLUE_IMAGE_TAG="stable"
 # Supplied by `just build` from the base image's FROM line.
 ARG BASE_IMAGE_NAME=""
 ARG VERSION=""
+# Set to 1 to build the NVIDIA variant; 50-nvidia.sh does nothing otherwise.
+ARG NVIDIA="0"
 
 ### MODIFICATIONS
 ## Make modifications desired in your image and install packages by modifying the build scripts.
@@ -107,6 +109,17 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/boot \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build/20-packages-and-services.sh
+
+### NVIDIA DRIVER
+## Installs the pre-built ublue-os akmods, the driver, and the container
+## toolkit, and sets the kernel arguments Wayland needs. Runs only when the
+## NVIDIA build argument is 1; the plain variant skips it.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache/libdnf5 \
+    --mount=type=cache,dst=/var/cache/rpm-ostree \
+    --mount=type=tmpfs,dst=/boot \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/build/50-nvidia.sh
 
 ### HYPRLAND DESKTOP
 ## Installs Hyprland, its session/portal/polkit-agent packages, the desktop
