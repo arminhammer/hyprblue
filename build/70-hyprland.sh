@@ -11,7 +11,7 @@ set -euo pipefail
 # as the display manager, ML4W's own dotfiles (fetched, not vendored — see
 # below), fish as the default shell, Monofur Nerd Font as the default terminal
 # font, and oh-my-posh as the shell prompt (also fetched, checksum-verified —
-# no Fedora package or COPR exists for it). Kept separate from
+# no Fedora package or COPR exists for it, nor for nwg-displays). Kept separate from
 # 20-packages-and-services.sh so the Hyprland package set is one
 # self-contained, independently reviewable/removable phase.
 #
@@ -42,7 +42,7 @@ echo "::group:: Install Hyprland packages"
 copr_install_isolated "lionheartp/Hyprland" \
 	hyprland hyprshutdown uwsm awww hyprsunset quickshell hyprland-guiutils \
 	xdg-desktop-portal-hyprland hyprpolkitagent hyprpaper hyprlock hypridle \
-	hyprpicker kitty cliphist nwg-look qt6ct
+	hyprpicker kitty cliphist nwg-look qt6ct grimblast waypaper
 
 echo "::endgroup::"
 
@@ -64,6 +64,14 @@ copr_install_isolated "aquacash5/nerd-fonts" jet-brains-mono-nerd-fonts monofur-
 
 echo "::endgroup::"
 
+echo "::group:: Install Bibata cursor"
+
+# The dotfiles' autostart and GTK settings both name Bibata-Modern-Ice, which
+# no Fedora repo or the Hyprland COPR carries.
+copr_install_isolated "peterwu/rendezvous" bibata-cursor-themes
+
+echo "::endgroup::"
+
 echo "::group:: Install Hyprland desktop packages"
 
 dnf5 install -y \
@@ -79,7 +87,41 @@ dnf5 install -y \
 	nautilus gnome-text-editor firefox xdg-user-dirs xdg-desktop-portal-gtk \
 	figlet fastfetch htop xclip zsh fzf brightnessctl tumbler slurp grim \
 	breeze-icon-theme tesseract wl-clipboard btop cargo eza libsecret waybar \
-	fish
+	fish matugen pinta gnome-keyring
+
+echo "::endgroup::"
+
+echo "::group:: Install nwg-displays"
+
+# No maintained Fedora package or COPR exists, so this builds the pinned
+# upstream release in place. Its runtime dependencies (gtk3, gtk-layer-shell,
+# python3-gobject, python3-i3ipc) are installed above; build-time setuptools
+# is too. Same sha256-pinned fetch pattern as oh-my-posh below.
+NWG_DISPLAYS_VERSION="0.4.4"
+NWG_DISPLAYS_SHA256="07bd92f892457d0153d7fea53e838555f9753974a53a4d989d294b6e75c40104"
+NWG_TMP="$(mktemp -d)"
+trap 'rm -rf "${NWG_TMP}"' EXIT
+
+curl --fail --retry 3 --silent --show-error --location \
+	--output "${NWG_TMP}/nwg-displays.tar.gz" \
+	"https://github.com/nwg-piotr/nwg-displays/archive/refs/tags/v${NWG_DISPLAYS_VERSION}.tar.gz"
+
+actual_sha256="$(sha256sum "${NWG_TMP}/nwg-displays.tar.gz" | cut -d' ' -f1)"
+if [[ "${NWG_DISPLAYS_SHA256}" != "${actual_sha256}" ]]; then
+	echo "ERROR: nwg-displays download checksum mismatch" >&2
+	exit 1
+fi
+
+tar -xzf "${NWG_TMP}/nwg-displays.tar.gz" -C "${NWG_TMP}"
+NWG_SRC="${NWG_TMP}/nwg-displays-${NWG_DISPLAYS_VERSION}"
+
+pip install --no-deps --no-build-isolation --no-compile --root-user-action=ignore \
+	--prefix=/usr "${NWG_SRC}"
+install -Dm 644 -t /usr/share/applications "${NWG_SRC}/nwg-displays.desktop"
+install -Dm 644 -t /usr/share/pixmaps "${NWG_SRC}/nwg-displays.svg"
+
+rm -rf "${NWG_TMP}"
+trap - EXIT
 
 echo "::endgroup::"
 
