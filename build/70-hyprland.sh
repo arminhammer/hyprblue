@@ -126,9 +126,17 @@ DOTFILES_SRC="${ML4W_DOTFILES_TMP}/dotfiles-${ML4W_DOTFILES_TAG}/dotfiles"
 # ML4W's autostart execs /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1,
 # but the polkit-gnome package that provided it no longer exists in Fedora's
 # repos (verified with `dnf repoquery`). hyprpolkitagent, installed above from
-# lionheartp/Hyprland, is this image's actual polkit agent.
+# lionheartp/Hyprland, is this image's actual polkit agent. It lives in
+# /usr/libexec, which is not on PATH, so the full path is required.
 sed -i \
-	's#/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1#hyprpolkitagent#' \
+	's#/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1#/usr/libexec/hyprpolkitagent#' \
+	"${DOTFILES_SRC}/.config/hypr/conf/autostart.lua"
+
+# base-atomic has no Wi-Fi picker and ML4W's autostart starts none, so a fresh
+# session has no way to join a network graphically. nm-applet (installed above)
+# provides one through waybar's tray.
+sed -i \
+	's#^\(\s*\)hl.exec_cmd("/usr/libexec/hyprpolkitagent")#&\n\1hl.exec_cmd("nm-applet --indicator")#' \
 	"${DOTFILES_SRC}/.config/hypr/conf/autostart.lua"
 
 # ML4W's kitty.conf defaults to JetBrainsMono Nerd Font; both fonts are

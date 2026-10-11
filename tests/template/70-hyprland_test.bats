@@ -292,7 +292,14 @@ teardown() {
 	[ -f "${autostart}" ]
 	run grep -q "polkit-gnome" "${autostart}"
 	[ "$status" -ne 0 ]
-	grep -q "hyprpolkitagent" "${autostart}"
+	grep -q 'hl.exec_cmd("/usr/libexec/hyprpolkitagent")' "${autostart}"
+}
+
+@test "70-hyprland: starts nm-applet so a fresh session can join Wi-Fi" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	grep -q 'hl.exec_cmd("nm-applet --indicator")' "${SANDBOX}/etc/skel/.config/hypr/conf/autostart.lua"
 }
 
 @test "70-hyprland: patches kitty's default font to Monofur Nerd Font" {
