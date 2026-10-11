@@ -127,13 +127,14 @@ echo "::endgroup::"
 
 echo "::group:: Install SDDM"
 
-# sddm, qt6-qtsvg, qt6-qtvirtualkeyboard, and qt6-qtmultimedia are already in
-# Fedora's official repos, so this is a plain install with no COPR involved.
-# Matches the exact package set ML4W's own ml4w-install-sddm script installs,
-# plus sddm-breeze: Fedora's sddm package defaults Theme/Current to
-# "01-breeze-fedora" but doesn't ship that theme itself — sddm-breeze does.
-# Without it SDDM silently falls back to its embedded theme every start.
-dnf5 install -y sddm sddm-breeze qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia
+# sddm and its Qt6 companions are in Fedora's official repos, so this is a plain
+# install with no COPR involved. sddm needs a greeter display server, and with
+# none named dnf picks sddm-wayland-plasma, which drags in kwin and
+# plasma-workspace (the Plasma session, polkit-kde, kwallet). sddm-wayland-generic
+# (weston) is the plain alternative. sddm-breeze is omitted for the same reason:
+# it requires plasma-workspace. Without kde-settings-sddm nothing sets
+# Theme/Current, so SDDM uses its embedded theme.
+dnf5 install -y sddm sddm-wayland-generic qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia
 
 echo "::endgroup::"
 

@@ -253,18 +253,16 @@ teardown() {
 	[ "${calls[12]}" = "install -y libnotify qt5-qtwayland qt6-qtwayland python3-pip python3-gobject python3-devel python3-setuptools gtk3 gtk-layer-shell python3-i3ipc pipx nm-connection-editor network-manager-applet fuse ImageMagick NetworkManager-tui tesseract-langpack-eng fontawesome-fonts-all qt5-qtgraphicaleffects qt6-qt5compat qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia gvfs-mtp openssl-devel pkgconf-pkg-config gcc gobject-introspection-devel cairo-gobject-devel gtk4 libadwaita-devel lua wget2-wget curl git rsync unzip tar jq flatpak vim-enhanced inotify-tools udisks2 gvfs udiskie rofi pavucontrol neovim blueman nautilus gnome-text-editor firefox xdg-user-dirs xdg-desktop-portal-gtk figlet fastfetch htop xclip zsh fzf brightnessctl tumbler slurp grim breeze-icon-theme tesseract wl-clipboard btop cargo eza libsecret waybar fish matugen pinta gnome-keyring" ]
 }
 
-@test "70-hyprland: installs SDDM and its Qt6 companions from Fedora's own repos" {
-	# Matches the exact package set ML4W's own ml4w-install-sddm script installs,
-	# plus sddm-breeze: Fedora's sddm package defaults Theme/Current to
-	# "01-breeze-fedora" (baked into its shipped /etc/sddm.conf as a commented
-	# default), but doesn't ship that theme itself — sddm-breeze does (verified
-	# with `dnf repoquery -l sddm-breeze`). Without it SDDM falls back to its
-	# embedded theme and logs "doesn't exist" on every start.
+@test "70-hyprland: installs SDDM with the generic greeter, not the Plasma one" {
+	# With no greeter display server named, dnf resolves sddm's requirement to
+	# sddm-wayland-plasma, which pulls in kwin and plasma-workspace. sddm-breeze
+	# is also omitted: it requires plasma-workspace.
 	run bash "${SCRIPT}"
 	[ "$status" -eq 0 ]
 
 	mapfile -t calls <"${DNF5_LOG}"
-	[ "${calls[13]}" = "install -y sddm sddm-breeze qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia" ]
+	[ "${calls[13]}" = "install -y sddm sddm-wayland-generic qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia" ]
+	! grep -E "plasma|kwin|sddm-breeze" <<<"${calls[13]}"
 }
 
 @test "70-hyprland: makes exactly the expected dnf5 calls, in order, with nothing extra" {
