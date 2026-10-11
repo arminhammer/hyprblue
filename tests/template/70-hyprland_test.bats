@@ -316,6 +316,13 @@ teardown() {
 	grep -q "^font_family.*Monofur Nerd Font" "${kitty_conf}"
 }
 
+@test "70-hyprland: kitty launches fish regardless of the account's login shell" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	grep -qx 'shell /usr/bin/fish' "${SANDBOX}/etc/skel/.config/kitty/kitty.conf"
+}
+
 @test "70-hyprland: sets fish as the default shell for new accounts" {
 	# useradd -D -s only changes /etc/default/useradd's SHELL= line for
 	# accounts created after this (including the one Anaconda's installer

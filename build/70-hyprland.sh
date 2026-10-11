@@ -145,6 +145,11 @@ sed -i \
 	's/^font_family.*/font_family                 Monofur Nerd Font/' \
 	"${DOTFILES_SRC}/.config/kitty/kitty.conf"
 
+# useradd -D -s below only reaches accounts created after the image, so an
+# account that predates it keeps bash as its login shell. Pointing kitty at
+# fish makes the terminal use it regardless.
+printf '\nshell /usr/bin/fish\n' >>"${DOTFILES_SRC}/.config/kitty/kitty.conf"
+
 # ML4W's 20-customization.fish calls $HOME/.local/bin/oh-my-posh, the path its
 # own per-user ohmyposh.dev/install.sh installer uses. This image installs the
 # binary system-wide at /usr/bin instead (see below), so the hardcoded path

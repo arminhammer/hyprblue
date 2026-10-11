@@ -8,7 +8,7 @@ recursive, so recipes can be grouped into subdirectories by topic.
 ## Files
 
 - `custom-apps.just` — Homebrew shortcuts
-- `custom-system.just` — system configuration
+- `custom-system.just` — system configuration, including `setup-hyprland`
 
 ## Writing a recipe
 
