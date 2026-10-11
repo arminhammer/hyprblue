@@ -132,6 +132,12 @@ sed -i \
 	's#/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1#/usr/libexec/hyprpolkitagent#' \
 	"${DOTFILES_SRC}/.config/hypr/conf/autostart.lua"
 
+# hyprland-welcome decides whether a component is installed by looking for its
+# binary on PATH, and reports "Missing" when it is only in /usr/libexec. The
+# symlinks make the polkit agent and the portal findable by name too.
+ln -sf /usr/libexec/hyprpolkitagent /usr/bin/hyprpolkitagent
+ln -sf /usr/libexec/xdg-desktop-portal-hyprland /usr/bin/xdg-desktop-portal-hyprland
+
 # base-atomic has no Wi-Fi picker and ML4W's autostart starts none, so a fresh
 # session has no way to join a network graphically. nm-applet (installed above)
 # provides one through waybar's tray.

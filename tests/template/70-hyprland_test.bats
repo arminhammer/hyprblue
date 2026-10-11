@@ -27,7 +27,7 @@ setup() {
 	CURL_LOG="${TEST_ROOT}/logs/curl.log"
 	USERADD_LOG="${TEST_ROOT}/logs/useradd.log"
 
-	mkdir -p "${STUB_BIN}" "${TEST_ROOT}/logs" "${CTX}/build"
+	mkdir -p "${STUB_BIN}" "${TEST_ROOT}/logs" "${CTX}/build" "${SANDBOX}/usr/bin"
 
 	# The real helper library is sourced verbatim so a syntax break there fails
 	# this suite too.
@@ -37,6 +37,8 @@ setup() {
 		-e "s#/ctx/#${CTX}/#g" \
 		-e "s#/etc/skel#${SANDBOX}/etc/skel#g" \
 		-e "s#/usr/bin/oh-my-posh#${SANDBOX}/usr/bin/oh-my-posh#g" \
+		-e "s#/usr/bin/hyprpolkitagent#${SANDBOX}/usr/bin/hyprpolkitagent#g" \
+		-e "s#/usr/bin/xdg-desktop-portal-hyprland#${SANDBOX}/usr/bin/xdg-desktop-portal-hyprland#g" \
 		"${BUILD_SRC}" >"${SCRIPT}"
 
 	export PATH="${STUB_BIN}:${PATH}"
@@ -129,7 +131,7 @@ teardown() {
 }
 
 @test "70-hyprland: sandbox rewrite left no writes to the host filesystem" {
-	run grep -nE '(^|[^-[:alnum:]])/ctx/|[^-[:alnum:]]/etc/skel|[^-[:alnum:]]/usr/bin/oh-my-posh' "${SCRIPT}"
+	run grep -nE '(^|[^-[:alnum:]])/ctx/|[^-[:alnum:]]/etc/skel|[^-[:alnum:]]/usr/bin/(oh-my-posh|hyprpolkitagent|xdg-desktop-portal-hyprland)' "${SCRIPT}"
 	[ "$status" -ne 0 ]
 
 	grep -q "source ${CTX}/build/copr-helpers.sh" "${SCRIPT}"
@@ -293,6 +295,20 @@ teardown() {
 	run grep -q "polkit-gnome" "${autostart}"
 	[ "$status" -ne 0 ]
 	grep -q 'hl.exec_cmd("/usr/libexec/hyprpolkitagent")' "${autostart}"
+}
+
+@test "70-hyprland: links hyprpolkitagent onto PATH so hyprland-welcome can detect it" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	[ "$(readlink "${SANDBOX}/usr/bin/hyprpolkitagent")" = "/usr/libexec/hyprpolkitagent" ]
+}
+
+@test "70-hyprland: links xdg-desktop-portal-hyprland onto PATH so hyprland-welcome can detect it" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	[ "$(readlink "${SANDBOX}/usr/bin/xdg-desktop-portal-hyprland")" = "/usr/libexec/xdg-desktop-portal-hyprland" ]
 }
 
 @test "70-hyprland: starts nm-applet so a fresh session can join Wi-Fi" {
