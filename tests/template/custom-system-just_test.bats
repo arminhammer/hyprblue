@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Tests for custom/ujust/custom-system.just recipes:
-#   configure-dev-groups, install-config.
+#   configure-dev-groups, install-config, setup-hyprland.
 #
 # Each recipe body is extracted out of the justfile into a standalone bash
 # script and run against PATH mocks, so nothing runs against the host.
@@ -18,7 +18,7 @@ COMMAND_LOG=""
 _extract_recipe() {
     local recipe="$1" out_file="$2"
     awk -v recipe="${recipe}" '
-        $0 ~ ("^" recipe "([ ][A-Za-z_]+)*:$") { in_recipe=1; next }
+        $0 ~ ("^" recipe "([ ][A-Za-z_]+)*:([ ][A-Za-z_-]+)*$") { in_recipe=1; next }
         in_recipe && !found && /^    #!/ { found=1; next }
         found && /^[^[:space:]]/ { exit }
         found { sub(/^    /, ""); print }
@@ -203,12 +203,35 @@ _run_recipe() {
     [[ "${output}" == *"does not exist"* ]]
 }
 
+@test "setup-hyprland switches the login shell to fish" {
+    _run_recipe "setup-hyprland" MOCK_USER=tester
+
+    [ "${status}" -eq 0 ]
+    grep -qF "sudo usermod --shell /usr/bin/fish tester" "${COMMAND_LOG}"
+}
+
+@test "setup-hyprland leaves a user who already has fish alone" {
+    _write_mock "getent" <<'MOCK'
+#!/usr/bin/bash
+echo "tester:x:1000:1000::/home/tester:/usr/bin/fish"
+MOCK
+    _run_recipe "setup-hyprland"
+
+    [ "${status}" -eq 0 ]
+    ! grep -q "usermod" "${COMMAND_LOG}"
+    [[ "${output}" == *"already uses fish"* ]]
+}
+
+@test "setup-hyprland applies the default config first" {
+    grep -qE '^setup-hyprland: install-config$' "${SYSTEM_JUST}"
+}
+
 @test "every custom-system recipe declares a just group" {
     # ujust renders its menu by group; an ungrouped recipe disappears from it.
     local ungrouped
     ungrouped="$(awk '
         /^\[group\(/ { grouped=1; next }
-        /^[a-z][A-Za-z0-9_-]*([ ][A-Za-z_]+)*:$/ {
+        /^[a-z][A-Za-z0-9_-]*([ ][A-Za-z_]+)*:([ ][A-Za-z_-]+)*$/ {
             if (!grouped) print $0
             grouped=0
             next

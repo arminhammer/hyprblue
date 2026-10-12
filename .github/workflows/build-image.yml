@@ -46,7 +46,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build and push image
+    name: Build and push ${{ github.event.repository.name }}${{ matrix.suffix }}
     # A manual dispatch may select any ref. Limit it to the repository's default
     # branch so it cannot bypass the candidate-digest release path by rebuilding
     # and publishing from stable.
@@ -56,6 +56,14 @@ jobs:
     # fails that step. Renovate is held below 26.04 in renovate.json too.
     runs-on: ubuntu-24.04
     timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suffix: ""
+            nvidia: "0"
+          - suffix: "-nvidia"
+            nvidia: "1"
     permissions:
       contents: read
       packages: write
@@ -66,7 +74,8 @@ jobs:
       - name: Prepare environment
         run: |
           echo "IMAGE_REGISTRY=${IMAGE_REGISTRY,,}" >> "${GITHUB_ENV}"
-          echo "IMAGE_NAME=${IMAGE_NAME,,}" >> "${GITHUB_ENV}"
+          image_name="${IMAGE_NAME}${{ matrix.suffix }}"
+          echo "IMAGE_NAME=${image_name,,}" >> "${GITHUB_ENV}"
 
       # Anything not on the production branch is a testing build. TAG_STREAM
       # keeps generate-tags on the "testing" stream so it never emits
@@ -122,6 +131,7 @@ jobs:
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           IMAGE_VENDOR: ${{ env.IMAGE_VENDOR }}
           DEFAULT_TAG: ${{ env.DEFAULT_TAG }}
+          NVIDIA: ${{ matrix.nvidia }}
         with:
           timeout_minutes: 120
           max_attempts: 3

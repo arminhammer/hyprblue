@@ -204,6 +204,7 @@ build $target_image=IMAGE_NAME $tag=DEFAULT_TAG:
     BUILD_ARGS+=("--build-arg" "IMAGE_VENDOR=${image_vendor}")
     BUILD_ARGS+=("--build-arg" "UBLUE_IMAGE_TAG=${UBLUE_IMAGE_TAG:-${tag}}")
     BUILD_ARGS+=("--build-arg" "BASE_IMAGE_NAME=${base_image_name}")
+    BUILD_ARGS+=("--build-arg" "NVIDIA=${NVIDIA:-0}")
 
     # The Containerfile owns the OCI/ArtifactHub metadata, including URLs
     # derived from image identity. Pass only explicit metadata overrides.

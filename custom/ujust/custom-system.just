@@ -135,3 +135,24 @@ install-config:
             echo "  - ${entry}.backup.${TIMESTAMP}"
         done
     fi
+
+# Set up Hyprland for this user: apply the default config and make fish the login shell.
+[group('System')]
+setup-hyprland: install-config
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Accounts that predate the image keep bash: the image's default shell
+    # only reaches accounts created after the build.
+    FISH="/usr/bin/fish"
+    CURRENT_USER="$(id -un)"
+    CURRENT_SHELL="$(getent passwd "${CURRENT_USER}" | cut -d: -f7 || true)"
+
+    if [[ "${CURRENT_SHELL}" == "${FISH}" ]]; then
+        echo "${CURRENT_USER} already uses fish"
+    else
+        sudo usermod --shell "${FISH}" "${CURRENT_USER}"
+        echo "Login shell for ${CURRENT_USER} set to fish."
+    fi
+
+    echo "Log out and back in to start Hyprland with the new configuration."

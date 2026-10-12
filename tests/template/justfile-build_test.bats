@@ -205,6 +205,18 @@ podman_build_args() {
     [[ "${args}" == *"--build-arg BASE_IMAGE_NAME=silverblue"* ]]
 }
 
+@test "build: passes NVIDIA=0 by default" {
+    run_just build hyprblue stable
+    [ "$status" -eq 0 ]
+    [[ "$(podman_build_args)" == *"--build-arg NVIDIA=0"* ]]
+}
+
+@test "build: passes the caller's NVIDIA through" {
+    NVIDIA=1 run_just build hyprblue-nvidia stable
+    [ "$status" -eq 0 ]
+    [[ "$(podman_build_args)" == *"--build-arg NVIDIA=1"* ]]
+}
+
 @test "build: passes the base image name read from the FROM line" {
     printf 'FROM example.invalid/other-base:44@sha256:deadbeef\n' >"${SANDBOX}/Containerfile"
     run_just build hyprblue stable
