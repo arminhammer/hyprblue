@@ -217,6 +217,7 @@ printf '\nshell /usr/bin/fish\n' >>"${DOTFILES_SRC}/.config/kitty/kitty.conf"
 # binary system-wide at /usr/bin instead (see below), so the hardcoded path
 # would otherwise be a command-not-found on every interactive fish session.
 # zen.toml itself needs no separate fetch — it's already part of this archive.
+# shellcheck disable=SC2016
 sed -i \
 	's#\$HOME/\.local/bin/oh-my-posh#oh-my-posh#' \
 	"${DOTFILES_SRC}/.config/fish/conf.d/20-customization.fish"
