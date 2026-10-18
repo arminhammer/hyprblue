@@ -52,7 +52,7 @@ COPY --from=brew /system_files /oci/brew
 # session/portal/polkit-agent packages, and SDDM are installed by
 # build/70-hyprland.sh instead of inheriting GNOME's.
 # Renovate will keep the digest pin up to date.
-FROM quay.io/fedora-ostree-desktops/base-atomic:44@sha256:7a2bb53c68c7a40283a947dbf0d0e02bff06c81f0f5340b97bb21fd516d742b3
+FROM quay.io/fedora-ostree-desktops/base-atomic:44@sha256:72b8ebde56032b76652488cf99406d412a7b94cad41e864b04051dd530b1d435
 
 # Image identity - these define how bootc, fastfetch, and the ublue ecosystem
 # recognize your image. Change these to match your project name.
