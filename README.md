@@ -99,6 +99,8 @@ those a given package belongs in.
 | `main`   | `:stable-testing` | Testers and release candidates |
 | `stable` | `:stable`         | Production                     |
 
+The image ships as two variants, `hyprblue` and `hyprblue-nvidia`; both carry the same tags, and the NVIDIA variant installs the driver from ublue-os akmods. Build locally with `NVIDIA=1 just build hyprblue-nvidia stable`.
+
 Merging to `main` publishes `:stable-testing`; the promotion PR that follows
 publishes `:stable` when merged. Promotion verifies the cosign signature on the
 testing image before it reports ready, and refuses to promote at all once `main`

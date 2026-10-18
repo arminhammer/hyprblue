@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ###############################################################################
-# Example: NVIDIA driver and container toolkit
+# NVIDIA driver and container toolkit
 ###############################################################################
 # Provisions NVIDIA support into the base image from the pre-built akmods that
 # ublue-os publishes, following Bluefin's NVIDIA setup step for step.
@@ -12,11 +12,8 @@ set -euo pipefail
 # image whose tag carries the exact kernel version, so the akmod and the kernel
 # it was built against are always taken together.
 #
-# To use this script:
-# 1. Rename it to remove the .example extension: 50-nvidia.sh
-# 2. Add the explicit RUN block from build/README.md for
-#    /ctx/build/50-nvidia.sh after the 20-packages-and-services.sh block and
-#    before the 90-cleanup.sh block in the Containerfile.
+# Runs only when the NVIDIA build argument is 1, so one Containerfile builds
+# both the plain and the NVIDIA variant.
 #
 # Hardware-verified only: a container build can install the driver but cannot
 # prove it loads or that Wayland comes up. Check `nvidia-smi` on a real GPU.
@@ -26,6 +23,11 @@ set -euo pipefail
 # Common's shared layer only, so that override is not present here. Add the key
 # yourself if your hardware needs it.
 ###############################################################################
+
+if [[ "${NVIDIA:-0}" != "1" ]]; then
+	echo "NVIDIA=${NVIDIA:-0}; skipping the NVIDIA driver"
+	exit 0
+fi
 
 # Stock Fedora kernels, Silverblue included, use the "main" flavor.
 AKMODS_FLAVOR="${AKMODS_FLAVOR:-main}"
