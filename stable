@@ -52,7 +52,7 @@ make install
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     warn "~/.local/bin is not in your PATH. Adding it for this session..."
     export PATH="$HOME/.local/bin:$PATH"
-    
+
     # Add to .bashrc if not present
     if [[ -f "$HOME/.bashrc" ]] && ! grep -q ".local/bin" "$HOME/.bashrc"; then
         info "Adding ~/.local/bin to your .bashrc for future sessions..."
