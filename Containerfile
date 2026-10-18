@@ -62,6 +62,8 @@ ARG UBLUE_IMAGE_TAG="stable"
 # Supplied by `just build` from the base image's FROM line.
 ARG BASE_IMAGE_NAME=""
 ARG VERSION=""
+# Set to 1 to build the NVIDIA variant; 50-nvidia.sh does nothing otherwise.
+ARG NVIDIA="0"
 
 ### MODIFICATIONS
 ## Make modifications desired in your image and install packages by modifying the build scripts.
@@ -108,6 +110,28 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/build/20-packages-and-services.sh
 
+### BRAVE BROWSER
+## The Brave RPM installs into /opt/brave.com, so /opt is a real directory here
+## instead of the base image's symlink to /var/opt.
+RUN rm -rf /opt && mkdir /opt
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache/libdnf5 \
+    --mount=type=cache,dst=/var/cache/rpm-ostree \
+    --mount=type=tmpfs,dst=/boot \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/build/30-brave.sh
+
+### NVIDIA DRIVER
+## Installs the pre-built ublue-os akmods, the driver, and the container
+## toolkit, and sets the kernel arguments Wayland needs. Runs only when the
+## NVIDIA build argument is 1; the plain variant skips it.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=cache,dst=/var/cache/libdnf5 \
+    --mount=type=cache,dst=/var/cache/rpm-ostree \
+    --mount=type=tmpfs,dst=/boot \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/build/50-nvidia.sh
+
 ### HYPRLAND DESKTOP
 ## Installs Hyprland, its session/portal/polkit-agent packages, the desktop
 ## app set, and SDDM. Kept separate from the package phase above so it stays
@@ -128,14 +152,6 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     --mount=type=tmpfs,dst=/boot \
     /ctx/build/90-cleanup.sh
-
-### /opt
-## Makes /opt writeable by default. Needs to be here to make the main image
-## build strict (no /opt there). This is for downstream images/stuff like k0s.
-## If you need /opt as an immutable real directory for build-time packages
-## (e.g. google-chrome, docker-desktop), replace the next line with:
-##   RUN rm /opt && mkdir /opt
-RUN rm -rf /opt && ln -s /var/opt /opt
 
 ### IMAGE METADATA
 ## The Containerfile owns the metadata schema baked into every image. Local

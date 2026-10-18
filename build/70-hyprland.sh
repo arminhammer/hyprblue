@@ -11,7 +11,7 @@ set -euo pipefail
 # as the display manager, ML4W's own dotfiles (fetched, not vendored — see
 # below), fish as the default shell, Monofur Nerd Font as the default terminal
 # font, and oh-my-posh as the shell prompt (also fetched, checksum-verified —
-# no Fedora package or COPR exists for it). Kept separate from
+# no Fedora package or COPR exists for it, nor for nwg-displays). Kept separate from
 # 20-packages-and-services.sh so the Hyprland package set is one
 # self-contained, independently reviewable/removable phase.
 #
@@ -42,7 +42,7 @@ echo "::group:: Install Hyprland packages"
 copr_install_isolated "lionheartp/Hyprland" \
 	hyprland hyprshutdown uwsm awww hyprsunset quickshell hyprland-guiutils \
 	xdg-desktop-portal-hyprland hyprpolkitagent hyprpaper hyprlock hypridle \
-	hyprpicker kitty cliphist nwg-look qt6ct
+	hyprpicker kitty cliphist nwg-look qt6ct grimblast waypaper
 
 echo "::endgroup::"
 
@@ -64,6 +64,14 @@ copr_install_isolated "aquacash5/nerd-fonts" jet-brains-mono-nerd-fonts monofur-
 
 echo "::endgroup::"
 
+echo "::group:: Install Bibata cursor"
+
+# The dotfiles' autostart and GTK settings both name Bibata-Modern-Ice, which
+# no Fedora repo or the Hyprland COPR carries.
+copr_install_isolated "peterwu/rendezvous" bibata-cursor-themes
+
+echo "::endgroup::"
+
 echo "::group:: Install Hyprland desktop packages"
 
 dnf5 install -y \
@@ -79,19 +87,56 @@ dnf5 install -y \
 	nautilus gnome-text-editor firefox xdg-user-dirs xdg-desktop-portal-gtk \
 	figlet fastfetch htop xclip zsh fzf brightnessctl tumbler slurp grim \
 	breeze-icon-theme tesseract wl-clipboard btop cargo eza libsecret waybar \
-	fish
+	fish matugen pinta gnome-keyring iwd
+
+echo "::endgroup::"
+
+echo "::group:: Install nwg-displays"
+
+# No maintained Fedora package or COPR exists, so this builds the pinned
+# upstream release in place. Its runtime dependencies (gtk3, gtk-layer-shell,
+# python3-gobject, python3-i3ipc) are installed above; build-time setuptools
+# is too. Same sha256-pinned fetch pattern as oh-my-posh below.
+NWG_DISPLAYS_VERSION="0.4.4"
+NWG_DISPLAYS_SHA256="07bd92f892457d0153d7fea53e838555f9753974a53a4d989d294b6e75c40104"
+NWG_TMP="$(mktemp -d)"
+trap 'rm -rf "${NWG_TMP}"' EXIT
+
+curl --fail --retry 3 --silent --show-error --location \
+	--output "${NWG_TMP}/nwg-displays.tar.gz" \
+	"https://github.com/nwg-piotr/nwg-displays/archive/refs/tags/v${NWG_DISPLAYS_VERSION}.tar.gz"
+
+actual_sha256="$(sha256sum "${NWG_TMP}/nwg-displays.tar.gz" | cut -d' ' -f1)"
+if [[ "${NWG_DISPLAYS_SHA256}" != "${actual_sha256}" ]]; then
+	echo "ERROR: nwg-displays download checksum mismatch" >&2
+	exit 1
+fi
+
+tar -xzf "${NWG_TMP}/nwg-displays.tar.gz" -C "${NWG_TMP}"
+NWG_SRC="${NWG_TMP}/nwg-displays-${NWG_DISPLAYS_VERSION}"
+
+pip install --no-deps --no-build-isolation --no-compile --root-user-action=ignore \
+	--prefix=/usr "${NWG_SRC}"
+install -Dm 644 -t /usr/share/applications "${NWG_SRC}/nwg-displays.desktop"
+install -Dm 644 -t /usr/share/pixmaps "${NWG_SRC}/nwg-displays.svg"
+
+rm -rf "${NWG_TMP}"
+trap - EXIT
 
 echo "::endgroup::"
 
 echo "::group:: Install SDDM"
 
-# sddm, qt6-qtsvg, qt6-qtvirtualkeyboard, and qt6-qtmultimedia are already in
-# Fedora's official repos, so this is a plain install with no COPR involved.
-# Matches the exact package set ML4W's own ml4w-install-sddm script installs,
-# plus sddm-breeze: Fedora's sddm package defaults Theme/Current to
-# "01-breeze-fedora" but doesn't ship that theme itself — sddm-breeze does.
-# Without it SDDM silently falls back to its embedded theme every start.
-dnf5 install -y sddm sddm-breeze qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia
+# sddm and its Qt6 companions are in Fedora's official repos, so this is a plain
+# install with no COPR involved. sddm needs a greeter display server, and with
+# none named dnf picks sddm-wayland-plasma, which drags in kwin and
+# plasma-workspace (the Plasma session, polkit-kde, kwallet). sddm-wayland-generic
+# (weston) is the plain alternative. sddm-breeze is omitted for the same reason:
+# it requires plasma-workspace. Without kde-settings-sddm nothing sets
+# Theme/Current, so SDDM uses its embedded theme.
+# The greeter's compositor is Hyprland, set in custom/files/etc/sddm.conf.d: weston
+# enables every output but the screens stay black on NVIDIA.
+dnf5 install -y sddm sddm-wayland-generic qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia
 
 echo "::endgroup::"
 
@@ -100,6 +145,9 @@ echo "::group:: Enable Hyprland session services"
 # Without this, the image boots to no login screen and no way to start a
 # Hyprland session: base-atomic has no display manager at all.
 systemctl enable sddm.service
+
+# NetworkManager's Wi-Fi backend is iwd, set by custom/files/etc/NetworkManager/conf.d/iwd.conf.
+systemctl enable iwd.service
 
 echo "::endgroup::"
 
@@ -126,9 +174,31 @@ DOTFILES_SRC="${ML4W_DOTFILES_TMP}/dotfiles-${ML4W_DOTFILES_TAG}/dotfiles"
 # ML4W's autostart execs /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1,
 # but the polkit-gnome package that provided it no longer exists in Fedora's
 # repos (verified with `dnf repoquery`). hyprpolkitagent, installed above from
-# lionheartp/Hyprland, is this image's actual polkit agent.
+# lionheartp/Hyprland, is this image's actual polkit agent. It lives in
+# /usr/libexec, which is not on PATH, so the full path is required.
 sed -i \
-	's#/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1#hyprpolkitagent#' \
+	's#/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1#/usr/libexec/hyprpolkitagent#' \
+	"${DOTFILES_SRC}/.config/hypr/conf/autostart.lua"
+
+# ML4W's autostart redirects ml4w-autostart's output into ~/.mydotfiles, which
+# nothing creates. The shell fails on the redirect, so ml4w-autostart never runs
+# and Quickshell (the default bar, launcher, and dock) never starts.
+# shellcheck disable=SC2016
+sed -i \
+	's#~/.mydotfiles/ml4w-autostart.log#${XDG_RUNTIME_DIR}/ml4w-autostart.log#' \
+	"${DOTFILES_SRC}/.config/hypr/conf/autostart.lua"
+
+# hyprland-welcome decides whether a component is installed by looking for its
+# binary on PATH, and reports "Missing" when it is only in /usr/libexec. The
+# symlinks make the polkit agent and the portal findable by name too.
+ln -sf /usr/libexec/hyprpolkitagent /usr/bin/hyprpolkitagent
+ln -sf /usr/libexec/xdg-desktop-portal-hyprland /usr/bin/xdg-desktop-portal-hyprland
+
+# base-atomic has no Wi-Fi picker and ML4W's autostart starts none, so a fresh
+# session has no way to join a network graphically. nm-applet (installed above)
+# provides one through waybar's tray.
+sed -i \
+	's#^\(\s*\)hl.exec_cmd("/usr/libexec/hyprpolkitagent")#&\n\1hl.exec_cmd("nm-applet --indicator")#' \
 	"${DOTFILES_SRC}/.config/hypr/conf/autostart.lua"
 
 # ML4W's kitty.conf defaults to JetBrainsMono Nerd Font; both fonts are
@@ -136,6 +206,11 @@ sed -i \
 sed -i \
 	's/^font_family.*/font_family                 Monofur Nerd Font/' \
 	"${DOTFILES_SRC}/.config/kitty/kitty.conf"
+
+# useradd -D -s below only reaches accounts created after the image, so an
+# account that predates it keeps bash as its login shell. Pointing kitty at
+# fish makes the terminal use it regardless.
+printf '\nshell /usr/bin/fish\n' >>"${DOTFILES_SRC}/.config/kitty/kitty.conf"
 
 # ML4W's 20-customization.fish calls $HOME/.local/bin/oh-my-posh, the path its
 # own per-user ohmyposh.dev/install.sh installer uses. This image installs the

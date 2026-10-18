@@ -26,23 +26,37 @@ setup() {
 	SYSTEMCTL_LOG="${TEST_ROOT}/logs/systemctl.log"
 	CURL_LOG="${TEST_ROOT}/logs/curl.log"
 	USERADD_LOG="${TEST_ROOT}/logs/useradd.log"
+	PIP_LOG="${TEST_ROOT}/logs/pip.log"
 
-	mkdir -p "${STUB_BIN}" "${TEST_ROOT}/logs" "${CTX}/build"
+	mkdir -p "${STUB_BIN}" "${TEST_ROOT}/logs" "${CTX}/build" "${SANDBOX}/usr/bin" "${SANDBOX}/usr/share"
 
 	# The real helper library is sourced verbatim so a syntax break there fails
 	# this suite too.
 	cp "${REPO_ROOT}/build/copr-helpers.sh" "${CTX}/build/copr-helpers.sh"
 
+	NWG_SRC_DIR="${TEST_ROOT}/nwg-src"
+	mkdir -p "${NWG_SRC_DIR}/nwg-displays-0.4.4"
+	printf '[Desktop Entry]\nName=nwg-displays\n' >"${NWG_SRC_DIR}/nwg-displays-0.4.4/nwg-displays.desktop"
+	printf '<svg/>\n' >"${NWG_SRC_DIR}/nwg-displays-0.4.4/nwg-displays.svg"
+	FIXTURE_NWG_TARBALL="${TEST_ROOT}/fixture-nwg-displays.tar.gz"
+	tar -czf "${FIXTURE_NWG_TARBALL}" -C "${NWG_SRC_DIR}" nwg-displays-0.4.4
+	NWG_SHA256="$(sha256sum "${FIXTURE_NWG_TARBALL}" | cut -d' ' -f1)"
+
 	sed \
 		-e "s#/ctx/#${CTX}/#g" \
+		-e "s#^NWG_DISPLAYS_SHA256=.*#NWG_DISPLAYS_SHA256=\"${NWG_SHA256}\"#" \
+		-e "s#/usr/share/applications#${SANDBOX}/usr/share/applications#g" \
+		-e "s#/usr/share/pixmaps#${SANDBOX}/usr/share/pixmaps#g" \
 		-e "s#/etc/skel#${SANDBOX}/etc/skel#g" \
 		-e "s#/usr/bin/oh-my-posh#${SANDBOX}/usr/bin/oh-my-posh#g" \
+		-e "s#/usr/bin/hyprpolkitagent#${SANDBOX}/usr/bin/hyprpolkitagent#g" \
+		-e "s#/usr/bin/xdg-desktop-portal-hyprland#${SANDBOX}/usr/bin/xdg-desktop-portal-hyprland#g" \
 		"${BUILD_SRC}" >"${SCRIPT}"
 
 	export PATH="${STUB_BIN}:${PATH}"
-	export DNF5_LOG SYSTEMCTL_LOG CURL_LOG USERADD_LOG
+	export DNF5_LOG SYSTEMCTL_LOG CURL_LOG USERADD_LOG PIP_LOG
 
-	for tool in dnf5 systemctl useradd; do
+	for tool in dnf5 systemctl useradd pip; do
 		local log_var
 		log_var="$(printf '%s' "${tool}" | tr '[:lower:]' '[:upper:]')_LOG"
 		cat >"${STUB_BIN}/${tool}" <<EOF
@@ -65,6 +79,7 @@ EOF
 	cat >"${FIXTURE_SRC}/dotfiles-2.15.1/dotfiles/.config/hypr/conf/autostart.lua" <<'EOF'
 hl.on("hyprland.start", function ()
     hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
+    hl.exec_cmd("~/.config/ml4w/scripts/ml4w-autostart > ~/.mydotfiles/ml4w-autostart.log 2>&1")
 end)
 EOF
 	mkdir -p "${FIXTURE_SRC}/dotfiles-2.15.1/dotfiles/.config/kitty"
@@ -112,6 +127,7 @@ for i in "\${!args[@]}"; do
 		out="\${args[\$((i+1))]}"
 		case "\${url}" in
 			*dotfiles/archive/refs/tags*) cp "${FIXTURE_TARBALL}" "\${out}" ;;
+			*nwg-displays/archive/refs/tags*) cp "${FIXTURE_NWG_TARBALL}" "\${out}" ;;
 			*checksums.txt) cp "${FIXTURE_POSH_CHECKSUMS}" "\${out}" ;;
 			*posh-linux-amd64) cp "${POSH_BIN_SRC}" "\${out}" ;;
 			*) echo "unexpected curl fixture request: \${url}" >&2; exit 1 ;;
@@ -121,7 +137,7 @@ done
 exit 0
 EOF
 	chmod +x "${STUB_BIN}/curl"
-	export FIXTURE_TARBALL POSH_BIN_SRC FIXTURE_POSH_CHECKSUMS
+	export FIXTURE_TARBALL POSH_BIN_SRC FIXTURE_POSH_CHECKSUMS FIXTURE_NWG_TARBALL
 }
 
 teardown() {
@@ -129,7 +145,7 @@ teardown() {
 }
 
 @test "70-hyprland: sandbox rewrite left no writes to the host filesystem" {
-	run grep -nE '(^|[^-[:alnum:]])/ctx/|[^-[:alnum:]]/etc/skel|[^-[:alnum:]]/usr/bin/oh-my-posh' "${SCRIPT}"
+	run grep -nE '(^|[^-[:alnum:]])/ctx/|[^-[:alnum:]]/etc/skel|[^-[:alnum:]]/usr/bin/(oh-my-posh|hyprpolkitagent|xdg-desktop-portal-hyprland)|[^-[:alnum:]]/usr/share/(applications|pixmaps)' "${SCRIPT}"
 	[ "$status" -ne 0 ]
 
 	grep -q "source ${CTX}/build/copr-helpers.sh" "${SCRIPT}"
@@ -167,7 +183,7 @@ teardown() {
 	mapfile -t calls <"${DNF5_LOG}"
 	[ "${calls[0]}" = "-y copr enable lionheartp/Hyprland" ]
 	[ "${calls[1]}" = "-y copr disable lionheartp/Hyprland" ]
-	[ "${calls[2]}" = "-y install --enablerepo=copr:copr.fedorainfracloud.org:lionheartp:Hyprland hyprland hyprshutdown uwsm awww hyprsunset quickshell hyprland-guiutils xdg-desktop-portal-hyprland hyprpolkitagent hyprpaper hyprlock hypridle hyprpicker kitty cliphist nwg-look qt6ct" ]
+	[ "${calls[2]}" = "-y install --enablerepo=copr:copr.fedorainfracloud.org:lionheartp:Hyprland hyprland hyprshutdown uwsm awww hyprsunset quickshell hyprland-guiutils xdg-desktop-portal-hyprland hyprpolkitagent hyprpaper hyprlock hypridle hyprpicker kitty cliphist nwg-look qt6ct grimblast waypaper" ]
 }
 
 @test "70-hyprland: installs SwayNotificationCenter from erikreider/SwayNotificationCenter in isolation" {
@@ -195,6 +211,35 @@ teardown() {
 	[ "${calls[8]}" = "-y install --enablerepo=copr:copr.fedorainfracloud.org:aquacash5:nerd-fonts jet-brains-mono-nerd-fonts monofur-nerd-fonts" ]
 }
 
+@test "70-hyprland: installs the Bibata cursor from peterwu/rendezvous in isolation" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	mapfile -t calls <"${DNF5_LOG}"
+	[ "${calls[9]}" = "-y copr enable peterwu/rendezvous" ]
+	[ "${calls[10]}" = "-y copr disable peterwu/rendezvous" ]
+	[ "${calls[11]}" = "-y install --enablerepo=copr:copr.fedorainfracloud.org:peterwu:rendezvous bibata-cursor-themes" ]
+}
+
+@test "70-hyprland: builds the pinned nwg-displays release and installs its desktop files" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	mapfile -t calls <"${PIP_LOG}"
+	[ "${#calls[@]}" -eq 1 ]
+	[[ "${calls[0]}" == "install --no-deps --no-build-isolation --no-compile --root-user-action=ignore --prefix=/usr "*"/nwg-displays-0.4.4" ]]
+	[ -f "${SANDBOX}/usr/share/applications/nwg-displays.desktop" ]
+	[ -f "${SANDBOX}/usr/share/pixmaps/nwg-displays.svg" ]
+	grep -q "nwg-displays/archive/refs/tags/v0.4.4.tar.gz" "${CURL_LOG}"
+}
+
+@test "70-hyprland: fails when the nwg-displays download's checksum does not match" {
+	sed -i 's#^NWG_DISPLAYS_SHA256=.*#NWG_DISPLAYS_SHA256="0000000000000000000000000000000000000000000000000000000000000000"#' "${SCRIPT}"
+	run bash "${SCRIPT}"
+	[ "$status" -ne 0 ]
+	[ ! -s "${PIP_LOG}" ]
+}
+
 @test "70-hyprland: installs the desktop app set from Fedora's own repos" {
 	# vlc (RPM Fusion) and gnome-themes-extra (retired, no replacement found)
 	# are deliberately dropped from ML4W's list: RPM Fusion is a separate,
@@ -206,21 +251,19 @@ teardown() {
 	[ "$status" -eq 0 ]
 
 	mapfile -t calls <"${DNF5_LOG}"
-	[ "${calls[9]}" = "install -y libnotify qt5-qtwayland qt6-qtwayland python3-pip python3-gobject python3-devel python3-setuptools gtk3 gtk-layer-shell python3-i3ipc pipx nm-connection-editor network-manager-applet fuse ImageMagick NetworkManager-tui tesseract-langpack-eng fontawesome-fonts-all qt5-qtgraphicaleffects qt6-qt5compat qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia gvfs-mtp openssl-devel pkgconf-pkg-config gcc gobject-introspection-devel cairo-gobject-devel gtk4 libadwaita-devel lua wget2-wget curl git rsync unzip tar jq flatpak vim-enhanced inotify-tools udisks2 gvfs udiskie rofi pavucontrol neovim blueman nautilus gnome-text-editor firefox xdg-user-dirs xdg-desktop-portal-gtk figlet fastfetch htop xclip zsh fzf brightnessctl tumbler slurp grim breeze-icon-theme tesseract wl-clipboard btop cargo eza libsecret waybar fish" ]
+	[ "${calls[12]}" = "install -y libnotify qt5-qtwayland qt6-qtwayland python3-pip python3-gobject python3-devel python3-setuptools gtk3 gtk-layer-shell python3-i3ipc pipx nm-connection-editor network-manager-applet fuse ImageMagick NetworkManager-tui tesseract-langpack-eng fontawesome-fonts-all qt5-qtgraphicaleffects qt6-qt5compat qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia gvfs-mtp openssl-devel pkgconf-pkg-config gcc gobject-introspection-devel cairo-gobject-devel gtk4 libadwaita-devel lua wget2-wget curl git rsync unzip tar jq flatpak vim-enhanced inotify-tools udisks2 gvfs udiskie rofi pavucontrol neovim blueman nautilus gnome-text-editor firefox xdg-user-dirs xdg-desktop-portal-gtk figlet fastfetch htop xclip zsh fzf brightnessctl tumbler slurp grim breeze-icon-theme tesseract wl-clipboard btop cargo eza libsecret waybar fish matugen pinta gnome-keyring iwd" ]
 }
 
-@test "70-hyprland: installs SDDM and its Qt6 companions from Fedora's own repos" {
-	# Matches the exact package set ML4W's own ml4w-install-sddm script installs,
-	# plus sddm-breeze: Fedora's sddm package defaults Theme/Current to
-	# "01-breeze-fedora" (baked into its shipped /etc/sddm.conf as a commented
-	# default), but doesn't ship that theme itself — sddm-breeze does (verified
-	# with `dnf repoquery -l sddm-breeze`). Without it SDDM falls back to its
-	# embedded theme and logs "doesn't exist" on every start.
+@test "70-hyprland: installs SDDM with the generic greeter, not the Plasma one" {
+	# With no greeter display server named, dnf resolves sddm's requirement to
+	# sddm-wayland-plasma, which pulls in kwin and plasma-workspace. sddm-breeze
+	# is also omitted: it requires plasma-workspace.
 	run bash "${SCRIPT}"
 	[ "$status" -eq 0 ]
 
 	mapfile -t calls <"${DNF5_LOG}"
-	[ "${calls[10]}" = "install -y sddm sddm-breeze qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia" ]
+	[ "${calls[13]}" = "install -y sddm sddm-wayland-generic qt6-qtsvg qt6-qtvirtualkeyboard qt6-qtmultimedia" ]
+	! grep -E "plasma|kwin|sddm-breeze" <<<"${calls[13]}"
 }
 
 @test "70-hyprland: makes exactly the expected dnf5 calls, in order, with nothing extra" {
@@ -228,7 +271,7 @@ teardown() {
 	[ "$status" -eq 0 ]
 
 	mapfile -t calls <"${DNF5_LOG}"
-	[ "${#calls[@]}" -eq 11 ]
+	[ "${#calls[@]}" -eq 14 ]
 }
 
 @test "70-hyprland: enables sddm.service" {
@@ -239,8 +282,17 @@ teardown() {
 	[ "$status" -eq 0 ]
 
 	mapfile -t calls <"${SYSTEMCTL_LOG}"
-	[ "${#calls[@]}" -eq 1 ]
+	[ "${#calls[@]}" -eq 2 ]
 	[ "${calls[0]}" = "enable sddm.service" ]
+}
+
+@test "70-hyprland: enables iwd.service, the NetworkManager Wi-Fi backend" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	mapfile -t calls <"${SYSTEMCTL_LOG}"
+	[ "${calls[1]}" = "enable iwd.service" ]
+	grep -qx 'wifi.backend=iwd' "${BATS_TEST_DIRNAME}/../../custom/files/etc/NetworkManager/conf.d/iwd.conf"
 }
 
 @test "70-hyprland: fetches the pinned ML4W dotfiles tag" {
@@ -249,9 +301,9 @@ teardown() {
 	run bash "${SCRIPT}"
 	[ "$status" -eq 0 ]
 
-	mapfile -t calls <"${CURL_LOG}"
-	[[ "${calls[0]}" == *"https://github.com/mylinuxforwork/dotfiles/archive/refs/tags/2.15.1.tar.gz"* ]]
-	[[ "${calls[0]}" == *"--output "* ]]
+	line="$(grep "mylinuxforwork/dotfiles/archive/refs/tags/2.15.1.tar.gz" "${CURL_LOG}")"
+	[[ "${line}" == *"https://github.com/mylinuxforwork/dotfiles/archive/refs/tags/2.15.1.tar.gz"* ]]
+	[[ "${line}" == *"--output "* ]]
 }
 
 @test "70-hyprland: makes exactly the expected curl calls, with nothing extra" {
@@ -259,7 +311,7 @@ teardown() {
 	[ "$status" -eq 0 ]
 
 	mapfile -t calls <"${CURL_LOG}"
-	[ "${#calls[@]}" -eq 3 ]
+	[ "${#calls[@]}" -eq 4 ]
 }
 
 @test "70-hyprland: seeds /etc/skel/.config from the fetched dotfiles" {
@@ -292,7 +344,40 @@ teardown() {
 	[ -f "${autostart}" ]
 	run grep -q "polkit-gnome" "${autostart}"
 	[ "$status" -ne 0 ]
-	grep -q "hyprpolkitagent" "${autostart}"
+	grep -q 'hl.exec_cmd("/usr/libexec/hyprpolkitagent")' "${autostart}"
+}
+
+@test "70-hyprland: logs ml4w-autostart somewhere that exists so Quickshell starts" {
+	# The upstream redirect targets ~/.mydotfiles, which nothing creates; the
+	# shell then fails before ml4w-autostart runs.
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	autostart="${SANDBOX}/etc/skel/.config/hypr/conf/autostart.lua"
+	run grep -q "mydotfiles" "${autostart}"
+	[ "$status" -ne 0 ]
+	grep -qF '> ${XDG_RUNTIME_DIR}/ml4w-autostart.log 2>&1' "${autostart}"
+}
+
+@test "70-hyprland: links hyprpolkitagent onto PATH so hyprland-welcome can detect it" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	[ "$(readlink "${SANDBOX}/usr/bin/hyprpolkitagent")" = "/usr/libexec/hyprpolkitagent" ]
+}
+
+@test "70-hyprland: links xdg-desktop-portal-hyprland onto PATH so hyprland-welcome can detect it" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	[ "$(readlink "${SANDBOX}/usr/bin/xdg-desktop-portal-hyprland")" = "/usr/libexec/xdg-desktop-portal-hyprland" ]
+}
+
+@test "70-hyprland: starts nm-applet so a fresh session can join Wi-Fi" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	grep -q 'hl.exec_cmd("nm-applet --indicator")' "${SANDBOX}/etc/skel/.config/hypr/conf/autostart.lua"
 }
 
 @test "70-hyprland: patches kitty's default font to Monofur Nerd Font" {
@@ -307,6 +392,13 @@ teardown() {
 	run grep -q "JetBrainsMono Nerd Font" "${kitty_conf}"
 	[ "$status" -ne 0 ]
 	grep -q "^font_family.*Monofur Nerd Font" "${kitty_conf}"
+}
+
+@test "70-hyprland: kitty launches fish regardless of the account's login shell" {
+	run bash "${SCRIPT}"
+	[ "$status" -eq 0 ]
+
+	grep -qx 'shell /usr/bin/fish' "${SANDBOX}/etc/skel/.config/kitty/kitty.conf"
 }
 
 @test "70-hyprland: sets fish as the default shell for new accounts" {
@@ -348,6 +440,7 @@ for i in "\${!args[@]}"; do
 		out="\${args[\$((i+1))]}"
 		case "\${url}" in
 			*dotfiles/archive/refs/tags*) cp "${FIXTURE_TARBALL}" "\${out}" ;;
+			*nwg-displays/archive/refs/tags*) cp "${FIXTURE_NWG_TARBALL}" "\${out}" ;;
 			*checksums.txt) printf '%s\n' "0000000000000000000000000000000000000000000000000000000000000000  posh-linux-amd64" >"\${out}" ;;
 			*posh-linux-amd64) cp "${POSH_BIN_SRC}" "\${out}" ;;
 		esac
