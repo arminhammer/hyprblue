@@ -14,7 +14,7 @@ permissions: {}
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       # The promotion check below reads refs and commits through the API.
